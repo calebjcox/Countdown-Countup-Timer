@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Plain Material 3 day/night. The device's own colors are layered on at runtime
+      by DynamicColors in App, so there is no hand-maintained palette to drift out of
+      step with the system.
+    -->
+    <style name="Theme.CountdownWidgets" parent="Theme.Material3.DayNight.NoActionBar" />
+</resources>

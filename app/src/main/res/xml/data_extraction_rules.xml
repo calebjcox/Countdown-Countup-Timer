@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Timers are worth carrying to a new phone; the widget bindings that go with them
+  are remapped by TimerWidgetProvider.onRestored, since widget ids are not stable
+  across devices.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include
+            domain="sharedpref"
+            path="timers.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include
+            domain="sharedpref"
+            path="timers.xml" />
+    </device-transfer>
+</data-extraction-rules>
