@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -29,6 +29,11 @@ jobs:
         run: sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
 
       - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compute version
+        run: |
+          echo "APP_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "APP_VERSION_NAME=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
       # The date math is the part worth guarding; it runs on a plain JVM.
       - name: Unit tests
