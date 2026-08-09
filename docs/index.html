@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Countdowns — Privacy Policy</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #555555;
+    --rule: #e0e0e0;
+    --accent: #2a5db0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --fg: #e8e8e8;
+      --muted: #a8a8a8;
+      --rule: #33363c;
+      --accent: #7aa2f7;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  .updated { color: var(--muted); font-size: 0.9rem; margin-top: 0; margin-bottom: 2rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 1.5rem; }
+  p, li { color: var(--fg); }
+  a { color: var(--accent); }
+  code {
+    background: var(--rule);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .summary {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-left: 3px solid var(--accent);
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Privacy Policy for Countdowns</h1>
+<p class="updated">Last updated: August 9, 2026</p>
+
+<p>Countdowns ("the app") is a home-screen widget app that counts down to, or
+up from, dates and times you choose. This policy explains what happens to
+your data when you use it.</p>
+
+<div class="summary">
+  <strong>Summary:</strong> The app does not collect, transmit, or share any
+  data. Everything you enter stays on your device.
+</div>
+
+<h2>Data collection</h2>
+<p>The app collects no personal information, usage data, analytics, or
+diagnostics of any kind. It contains no advertising, analytics, or
+crash-reporting software development kits (SDKs), and it does not use
+cookies, device identifiers, or any similar tracking technology.</p>
+
+<h2>Network access</h2>
+<p>The app does not request the <code>INTERNET</code> permission and cannot
+make network requests. It has no server, no account system, and no
+connection to any third-party service. This is a property of the app's
+build, not just its current behavior — it is architecturally incapable of
+sending data anywhere.</p>
+
+<h2>Data storage</h2>
+<p>The only information the app handles is what you enter to configure your
+timers: names, target dates and times, and display preferences (which units
+to show, colors, and similar settings). This is stored locally on your
+device, in the app's private storage, using Android's standard
+<code>SharedPreferences</code> mechanism. It is never transmitted off the
+device, and no one but you — not the developer, not any third party — has
+access to it.</p>
+<p>Deleting a timer within the app removes its data immediately.
+Uninstalling the app removes all of its data from your device.</p>
+
+<h2>Permissions</h2>
+<p>The app requests one Android permission:</p>
+<ul>
+  <li><code>RECEIVE_BOOT_COMPLETED</code> — a normal-protection-level
+  permission granted automatically at install, with no prompt. It lets the
+  app reschedule its widget-refresh alarm after your device restarts, so a
+  widget doesn't sit showing stale text until the system's next periodic
+  update. It is not used for any other purpose.</li>
+</ul>
+<p>The app does not request access to your location, contacts, calendar,
+storage, camera, microphone, or any other sensitive permission.</p>
+
+<h2>Children's privacy</h2>
+<p>Because the app collects no data from any user, it does not knowingly
+collect data from children, and none of the exceptions under the
+Children's Online Privacy Protection Act (COPPA) or similar laws apply.</p>
+
+<h2>Changes to this policy</h2>
+<p>If this policy changes, the "Last updated" date above will change
+accordingly, and the new policy will be posted at this same location.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy can be raised by opening an issue on the
+<a href="https://github.com/calebjcox/Countdown-Countup-Timer/issues">project's GitHub repository</a>.</p>
+
+</body>
+</html>
