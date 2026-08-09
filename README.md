@@ -31,6 +31,48 @@ came around.
 There is no `SCHEDULE_EXACT_ALARM`, no `INTERNET`, no notification, storage,
 location or calendar access. The app makes no network requests of any kind.
 
+Backup does not add to this list. Export and import go through the Storage Access
+Framework, where the user picks the file and the app is handed access to that one
+file — so there is nothing to grant and nothing to prompt for.
+
+## Backing up timers
+
+Two mechanisms, both permission-free.
+
+**Android's own backup** carries timers to a new phone or through a reinstall,
+via `allowBackup` and the `sharedpref` include in
+[`data_extraction_rules.xml`](app/src/main/res/xml/data_extraction_rules.xml).
+Widget ids are not stable across devices, so `TimerWidgetProvider.onRestored`
+hands the old-to-new mapping to `TimerStore.remapWidgets`. Every write also calls
+`BackupManager.dataChanged()`, so a change is a candidate for the next backup run
+rather than waiting for the system to notice on its own.
+
+That path is invisible and cannot be triggered on demand, so there is also
+**export and import**, under the overflow menu. The file is JSON, pretty-printed
+and hand-editable:
+
+```json
+{
+  "format": "countdowns-backup",
+  "version": 1,
+  "exportedAt": "2026-08-09T14:05:00",
+  "timers": [ ... ]
+}
+```
+
+JSON rather than a copy of `timers.xml`, even though that file is what storage
+writes: `TimerStore` keeps the whole list as one `JSONArray` string in a single
+preference, so `timers.xml` is escaped JSON inside SharedPreferences' `<map>`
+wrapper. Exporting JSON is *less* transformation, not more — and a prefs file
+cannot be imported anyway, since dropping one into `shared_prefs/` while the app
+is running just loses to the in-memory copy.
+
+Reading is deliberately forgiving, the same way `Timer.fromJson` already was: a
+bare array is accepted as well as the envelope, one unreadable record does not
+cost the timers either side of it, a repeated id survives once, and a file from a
+future version says so instead of failing as corrupt. Import asks whether to merge
+or replace; replacing warns first when it would actually drop something.
+
 ## How the ticking works
 
 Android will not refresh a widget once per second: `updatePeriodMillis` floors at
@@ -93,7 +135,9 @@ handled by the platform rather than by arithmetic on millisecond counts.
 
 ## Privacy
 
-The app collects no data and makes no network requests. See
+The app collects no data and makes no network requests. Timers leave the device
+only through the two backup routes above, both of which the user drives: the
+phone's own Google backup, and a file exported to a location they pick. See
 [PRIVACY.md](PRIVACY.md) for the full policy, or
 [the hosted version](https://calebjcox.github.io/Countdown-Countup-Timer/) on
 GitHub Pages — this is the URL used in the Play Store listing.
@@ -111,7 +155,8 @@ daylight saving in both directions, every unit subset, count-up symmetry, and th
 the scheduled refresh lands exactly on the boundary where the text changes.
 
 ```
-./gradlew :core:test        # the date math
+./gradlew :core:test              # the date math
+./gradlew :app:testDebugUnitTest  # the backup format
 ./gradlew :app:assembleDebug
 ```
 
@@ -123,6 +168,10 @@ at all. Built against Android 17 (API 37), which is what a Pixel 10 runs.
 Runtime dependencies are `kotlin-stdlib`, `core-ktx`, `appcompat`, Material
 Components and RecyclerView. No Glance, no Compose, no WorkManager, no Room, no
 DataStore. Storage is `SharedPreferences` plus the platform's own `org.json`.
+
+`org.json:json` appears as a test-only dependency of `:app`, because the `org.json`
+in `android.jar` is a stub whose every method throws under unit tests. On a device
+it is the platform's implementation that runs, as it always was.
 
 ## Installing without Android Studio
 

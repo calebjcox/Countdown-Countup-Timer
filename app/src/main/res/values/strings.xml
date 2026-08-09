@@ -57,4 +57,43 @@
     <!-- Widget configuration -->
     <string name="choose_timer_title">Choose a timer</string>
     <string name="choose_timer_body">This widget will show the timer you pick. You can change it later by long-pressing the widget.</string>
+
+    <!-- Backup -->
+    <string name="backup_title">Backup</string>
+    <string name="auto_backup_section">Automatic backup</string>
+    <string name="auto_backup_body">Your timers are included in your phone\'s Google backup, so they come back on their own when you reinstall Countdowns or set up a new phone. This only happens if backup is turned on in your phone\'s settings, it runs on Android\'s own schedule, and it can\'t be started from here — so if your timers matter to you, keep a file as well.</string>
+    <string name="backup_file_section">Backup file</string>
+    <string name="backup_file_body">Save your timers to a file you keep. You choose where it goes and Countdowns needs no extra permissions to write it. The file holds the timers themselves, not where their widgets sit on your home screen.</string>
+    <string name="export_timers">Export timers</string>
+    <string name="import_timers">Import timers</string>
+
+    <string name="nothing_to_export">There are no timers to export yet</string>
+    <string name="export_failed">Couldn\'t write to that file</string>
+    <string name="import_read_failed">Couldn\'t read that file</string>
+    <string name="import_not_a_backup">That file isn\'t a Countdowns backup</string>
+    <string name="import_too_new">That backup was made by a newer version of Countdowns</string>
+    <string name="import_empty">There are no timers in that file</string>
+
+    <string name="import_body">Merge keeps the timers already on this phone and updates any the backup also has. Replace makes the backup the whole list.</string>
+    <string name="import_merge">Merge</string>
+    <string name="import_replace">Replace all</string>
+    <string name="replace_title">Replace all timers?</string>
+
+    <plurals name="exported_timers">
+        <item quantity="one">Exported %1$d timer</item>
+        <item quantity="other">Exported %1$d timers</item>
+    </plurals>
+    <plurals name="import_title">
+        <item quantity="one">Import %1$d timer?</item>
+        <item quantity="other">Import %1$d timers?</item>
+    </plurals>
+    <plurals name="replace_body">
+        <item quantity="one">%1$d timer on this phone isn\'t in the backup and will be deleted.</item>
+        <item quantity="other">%1$d timers on this phone aren\'t in the backup and will be deleted.</item>
+    </plurals>
+    <plurals name="imported_replaced">
+        <item quantity="one">Restored %1$d timer</item>
+        <item quantity="other">Restored %1$d timers</item>
+    </plurals>
+    <string name="imported_merged">Added %1$d, updated %2$d</string>
 </resources>

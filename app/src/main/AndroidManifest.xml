@@ -34,6 +34,16 @@
             android:parentActivityName=".ui.MainActivity" />
 
         <!--
+          Export and import both go through the Storage Access Framework, which
+          hands back a Uri for a file the user picked. That needs no permission of
+          any kind, which is why nothing was added above.
+        -->
+        <activity
+            android:name=".ui.BackupActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+
+        <!--
           Launched by the launcher when a widget is dropped, and again for
           "reconfigure" from the widget's long-press menu.
         -->
