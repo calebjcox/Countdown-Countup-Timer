@@ -28,10 +28,32 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # versionCode comes from the tag, not from a run counter. Play requires it to
+      # increase strictly and forever, and burns every value it has seen — while
+      # github.run_number is scoped to this workflow *file* and silently restarts at
+      # 1 if the file is ever renamed or replaced, which would be unrecoverable.
+      # v1.2.3 -> 10203. Monotonic exactly while minor and patch stay below 100,
+      # hence the guard.
       - name: Compute version
         run: |
-          echo "APP_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
-          echo "APP_VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          # 10# forces base 10. Without it a tag like v1.2.08 makes bash read "08"
+          # as octal, which is not an arithmetic error it exits on — it prints a
+          # complaint, leaves APP_VERSION_CODE unset, and the build quietly falls
+          # back to versionCode 1.
+          major="$(( 10#${BASH_REMATCH[1]} ))"
+          minor="$(( 10#${BASH_REMATCH[2]} ))"
+          patch="$(( 10#${BASH_REMATCH[3]} ))"
+          if (( minor > 99 || patch > 99 )); then
+            echo "::error::minor and patch must be below 100 to keep versionCode monotonic"
+            exit 1
+          fi
+          echo "APP_VERSION_CODE=$(( major * 10000 + minor * 100 + patch ))" >> "$GITHUB_ENV"
+          echo "APP_VERSION_NAME=$version" >> "$GITHUB_ENV"
 
       - name: Unit tests
         run: ./gradlew :core:test

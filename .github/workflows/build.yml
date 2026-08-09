@@ -30,10 +30,14 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # A run counter is enough here, and deliberately not the scheme release.yml
+      # uses: debug installs under its own applicationId, so its version codes are
+      # never compared against the released app's and never reach Play. The name is
+      # the commit, and the build type appends "-debug" to it.
       - name: Compute version
         run: |
           echo "APP_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
-          echo "APP_VERSION_NAME=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+          echo "APP_VERSION_NAME=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
       # The date math is the part worth guarding; it runs on a plain JVM.
       - name: Unit tests

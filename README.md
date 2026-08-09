@@ -130,6 +130,31 @@ Every push builds a debug APK in GitHub Actions. Open the run, download the
 `countdowns-debug-apk` artifact, unzip it, and install `app-debug.apk` on the
 phone.
 
+Debug builds install as **Countdowns (debug)**, under their own application id
+(`com.calebjcox.countdownwidgets.debug`). That makes them a separate app from a
+release install, with separate timers and separate widgets — the two sit next to
+each other and neither can overwrite the other. Each successive debug APK does
+update over the last one, because they are all signed with the same key.
+
+### The debug keystore is committed, deliberately
+
+`app/debug.keystore` is in the repository on purpose, and it is **not a leaked
+secret**. It is the standard Android debug keystore, holding the same public
+credentials every debug key uses — alias `androiddebugkey`, password `android`,
+both of which are published in Google's own documentation. Anyone can generate an
+identical one in a second.
+
+It is committed because the alternative is worse: with no keystore checked in, the
+build tools invent a fresh random one on each machine, so every CI run would sign
+its APK with a different key and Android would refuse to install any of them over
+the last. Committing it is what makes the download-and-install path above work
+more than once.
+
+Its blast radius is one package. Because debug builds carry the `.debug` suffix,
+this key can only ever sign `com.calebjcox.countdownwidgets.debug` — it cannot
+sign, update, or impersonate the released app. The key that signs releases is not
+in this repository and never will be.
+
 ## Adding a widget
 
 Long-press an empty spot on the home screen → **Widgets** → **Countdowns**, then
