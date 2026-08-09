@@ -1,8 +1,8 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
+    // No Kotlin plugin here on purpose: AGP 9 compiles Kotlin itself, and applying
+    // org.jetbrains.kotlin.android alongside it is now an error. The Kotlin JVM
+    // target follows compileOptions below.
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -36,12 +36,6 @@ android {
 
     buildFeatures {
         viewBinding = true
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = JvmTarget.JVM_17
     }
 }
 

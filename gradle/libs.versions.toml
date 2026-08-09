@@ -21,5 +21,6 @@ junit = { module = "junit:junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+# Only the pure-JVM :core module needs a Kotlin plugin; AGP 9 compiles the app's
+# Kotlin itself and rejects org.jetbrains.kotlin.android being applied alongside it.
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
