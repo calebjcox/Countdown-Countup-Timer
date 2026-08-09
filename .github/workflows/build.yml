@@ -1,0 +1,57 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-37" "build-tools;36.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The date math is the part worth guarding; it runs on a plain JVM.
+      - name: Unit tests
+        run: ./gradlew :core:test
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug
+
+      # Uploaded before lint runs, so a style complaint never costs you the build.
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: countdowns-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Lint
+        run: ./gradlew :app:lintDebug
+
+      - name: Upload test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            core/build/reports/tests/**
+            app/build/reports/**
+          if-no-files-found: ignore
