@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Overrides the name from src/main for debug builds only. Debug installs under its
+  own applicationId, so without this there are two identical "Countdowns" entries
+  in the launcher and in the widget picker, with no way to tell them apart.
+-->
+<resources>
+    <string name="app_name">Countdowns (debug)</string>
+</resources>

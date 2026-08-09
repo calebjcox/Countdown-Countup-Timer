@@ -21,7 +21,39 @@ android {
         versionName = System.getenv("APP_VERSION_NAME") ?: "1.0"
     }
 
+    signingConfigs {
+        // Overrides AGP's auto-generated ~/.android/debug.keystore, which is created
+        // fresh on every machine — and on every CI runner, since nothing caches it.
+        // A downloaded debug APK could then never update over the last one, because
+        // Android refuses an update whose signing certificate has changed.
+        //
+        // The keystore is committed, and holds the public androiddebugkey/android
+        // credentials every Android debug key uses. It is not a secret and is not
+        // meant to be one: paired with the applicationIdSuffix below it can only
+        // ever sign .debug, never the production package.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            // Debug installs as a separate app, so it can sit next to a production
+            // install rather than replacing it: its own launcher entry, its own
+            // widgets, its own timers. Without this the two compete for one package
+            // slot, and since their signing keys differ they cannot even replace one
+            // another — every switch would mean an uninstall, which takes the user's
+            // timers with it.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            // AGP's default already, said out loud so the config above is visibly
+            // connected to the build type that uses it.
+            signingConfig = signingConfigs.getByName("debug")
+        }
+
         release {
             // Left off on purpose. The app is a few hundred kilobytes either way,
             // and not running R8 removes a whole class of "worked in debug" bugs.

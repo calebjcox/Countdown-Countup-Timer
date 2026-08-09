@@ -27,6 +27,12 @@ render.experimental.xml
 *.jks
 *.keystore
 
+# ...except the debug keystore, which is committed on purpose. It is the standard
+# Android debug key with the public androiddebugkey/android credentials, it signs
+# only the .debug package, and without it every CI run would sign with a fresh
+# random key. Not a secret; see "The debug keystore is committed" in the README.
+!app/debug.keystore
+
 # Google Services (e.g. APIs or Firebase)
 google-services.json
 
