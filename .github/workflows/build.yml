@@ -39,9 +39,11 @@ jobs:
           echo "APP_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
           echo "APP_VERSION_NAME=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
-      # The date math is the part worth guarding; it runs on a plain JVM.
+      # The date math and the backup format are the parts worth guarding: one
+      # decides what every widget says, the other is the only copy of a timer a
+      # user may have kept for years. Both run on a plain JVM.
       - name: Unit tests
-        run: ./gradlew :core:test
+        run: ./gradlew :core:test :app:testDebugUnitTest
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug
@@ -65,4 +67,5 @@ jobs:
           path: |
             core/build/reports/tests/**
             app/build/reports/**
+            app/build/test-results/**
           if-no-files-found: ignore

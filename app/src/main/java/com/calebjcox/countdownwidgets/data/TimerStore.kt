@@ -1,5 +1,6 @@
 package com.calebjcox.countdownwidgets.data
 
+import android.app.backup.BackupManager
 import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
@@ -14,8 +15,10 @@ import org.json.JSONArray
  */
 class TimerStore(context: Context) {
 
+    private val appContext: Context = context.applicationContext
+
     private val prefs: SharedPreferences =
-        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     // ------------------------------------------------------------------ timers
 
@@ -52,22 +55,52 @@ class TimerStore(context: Context) {
      */
     fun delete(id: String) {
         writeTimers(timers().filterNot { it.id == id })
-        val editor = prefs.edit()
-        for ((key, value) in prefs.all) {
-            if (key.startsWith(WIDGET_PREFIX) && value == id) editor.remove(key)
-        }
-        editor.commit()
+        dropWidgetBindings { it == id }
     }
+
+    /**
+     * Folds imported timers into the ones already here, matching on id: a timer
+     * that is already present is brought up to date in place, keeping its position
+     * in the list, and anything new lands at the end. Nothing is ever lost, so
+     * importing the same backup twice does nothing the second time.
+     */
+    fun merge(imported: List<Timer>): MergeResult {
+        val byId = LinkedHashMap<String, Timer>()
+        timers().forEach { byId[it.id] = it }
+
+        var added = 0
+        var updated = 0
+        for (timer in imported) {
+            if (byId.put(timer.id, timer) == null) added++ else updated++
+        }
+
+        writeTimers(byId.values.toList())
+        return MergeResult(added = added, updated = updated)
+    }
+
+    /**
+     * Makes [timers] the entire list, discarding anything not in it. Widgets left
+     * pointing at a timer that is gone fall back to "tap to choose a timer", the
+     * same as after a delete.
+     */
+    fun replaceAll(timers: List<Timer>) {
+        writeTimers(timers)
+        val kept = timers.mapTo(HashSet<String>()) { it.id }
+        dropWidgetBindings { it !in kept }
+    }
+
+    /** What [merge] did, so the caller can tell the user. */
+    data class MergeResult(val added: Int, val updated: Int)
 
     private fun writeTimers(timers: List<Timer>) {
         val array = JSONArray().also { array -> timers.forEach { array.put(it.toJson()) } }
-        prefs.edit().putString(KEY_TIMERS, array.toString()).commit()
+        commit(prefs.edit().putString(KEY_TIMERS, array.toString()))
     }
 
     // ------------------------------------------------------------- widget links
 
     fun bindWidget(appWidgetId: Int, timerId: String) {
-        prefs.edit().putString(widgetKey(appWidgetId), timerId).commit()
+        commit(prefs.edit().putString(widgetKey(appWidgetId), timerId))
     }
 
     fun timerIdForWidget(appWidgetId: Int): String? =
@@ -78,7 +111,7 @@ class TimerStore(context: Context) {
     fun unbindWidgets(appWidgetIds: IntArray) {
         val editor = prefs.edit()
         appWidgetIds.forEach { editor.remove(widgetKey(it)) }
-        editor.commit()
+        commit(editor)
     }
 
     /**
@@ -94,10 +127,36 @@ class TimerStore(context: Context) {
         val editor = prefs.edit()
         oldWidgetIds.forEach { editor.remove(widgetKey(it)) }
         moved.forEach { (newId, timerId) -> editor.putString(widgetKey(newId), timerId) }
-        editor.commit()
+        commit(editor)
+    }
+
+    /** Forgets every widget binding whose timer id [isStale]. */
+    private fun dropWidgetBindings(isStale: (String) -> Boolean) {
+        val editor = prefs.edit()
+        var changed = false
+        for ((key, value) in prefs.all) {
+            if (key.startsWith(WIDGET_PREFIX) && value is String && isStale(value)) {
+                editor.remove(key)
+                changed = true
+            }
+        }
+        if (changed) commit(editor)
     }
 
     private fun widgetKey(appWidgetId: Int) = "$WIDGET_PREFIX$appWidgetId"
+
+    /**
+     * The single write path. Committing synchronously is what makes writing from a
+     * broadcast receiver safe, and the nudge afterwards tells Android's backup
+     * transport that `timers.xml` has changed. Without it a cloud backup carries
+     * whatever the file happened to hold the last time the system felt like
+     * looking; with it, a timer the user just created is a candidate for the next
+     * backup run.
+     */
+    private fun commit(editor: SharedPreferences.Editor) {
+        editor.commit()
+        BackupManager(appContext).dataChanged()
+    }
 
     private companion object {
         const val PREFS_NAME = "timers"

@@ -77,4 +77,10 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.recyclerview)
+
+    testImplementation(libs.junit)
+    // Shadows the org.json stub in android.jar, whose methods all throw under unit
+    // tests. Only the backup format needs it, and only on the test classpath — the
+    // app itself still uses the platform's org.json on a device.
+    testImplementation(libs.json)
 }

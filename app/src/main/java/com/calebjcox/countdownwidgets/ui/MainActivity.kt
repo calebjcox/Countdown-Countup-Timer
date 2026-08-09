@@ -28,11 +28,18 @@ class MainActivity : AppCompatActivity() {
 
         binding.toolbar.inflateMenu(R.menu.menu_main)
         binding.toolbar.setOnMenuItemClickListener { item ->
-            if (item.itemId == R.id.action_widget_help) {
-                showWidgetHelp()
-                true
-            } else {
-                false
+            when (item.itemId) {
+                R.id.action_backup -> {
+                    startActivity(BackupActivity.intent(this))
+                    true
+                }
+
+                R.id.action_widget_help -> {
+                    showWidgetHelp()
+                    true
+                }
+
+                else -> false
             }
         }
 

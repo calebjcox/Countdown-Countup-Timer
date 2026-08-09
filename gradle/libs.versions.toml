@@ -10,6 +10,11 @@ material = "1.14.0"
 recyclerview = "1.4.0"
 
 junit = "4.13.2"
+# Test-only. android.jar's org.json is a stub whose every method throws, so the
+# real implementation has to be on the unit-test classpath to exercise anything
+# that touches JSON. Never a runtime dependency: on a device the platform's own
+# org.json is the one that runs.
+json = "20240303"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
@@ -18,6 +23,7 @@ androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version
 material = { module = "com.google.android.material:material", version.ref = "material" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
+json = { module = "org.json:json", version.ref = "json" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
