@@ -9,4 +9,8 @@
         android:id="@+id/action_widget_help"
         android:title="@string/how_to_add_a_widget"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_app_theme"
+        android:title="@string/app_theme_title"
+        app:showAsAction="never" />
 </menu>
