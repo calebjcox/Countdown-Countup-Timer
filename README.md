@@ -91,6 +91,13 @@ a day across a daylight-saving change is still one day (`2d`, even though the re
 elapsed time is 47 hours), months keep their real lengths, and February 29th is
 handled by the platform rather than by arithmetic on millisecond counts.
 
+## Privacy
+
+The app collects no data and makes no network requests. See
+[PRIVACY.md](PRIVACY.md) for the full policy, or
+[the hosted version](https://calebjcox.github.io/Countdown-Countup-Timer/) on
+GitHub Pages — this is the URL used in the Play Store listing.
+
 ## Project layout
 
 ```
