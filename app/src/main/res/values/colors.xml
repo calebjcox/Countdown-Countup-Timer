@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widget colors come from the device's Material You palette, which exists as
+  framework resources from API 31. Referencing them directly means the widget
+  follows the wallpaper without the app shipping a palette of its own, and without
+  any runtime code to resolve them.
+-->
+<resources>
+    <!-- Text on the widget's own panel. Paired with the panel by the -night variant. -->
+    <color name="widget_background">@android:color/system_neutral1_50</color>
+    <color name="widget_text_primary">@android:color/system_accent1_600</color>
+    <color name="widget_text_secondary">@android:color/system_neutral2_700</color>
+
+    <!--
+      Text drawn straight onto the wallpaper. Deliberately NOT duplicated in
+      values-night: which of these two applies is decided at runtime from the
+      wallpaper's own hint, not from the system theme, because a light-mode phone
+      with a dark photo wallpaper needs the light text a -night qualifier would
+      never give it. Tinted rather than plain white or black so the widget matches
+      the Material You palette the way the platform clock widget does.
+    -->
+    <color name="widget_on_wallpaper_light_primary">@android:color/system_accent1_100</color>
+    <color name="widget_on_wallpaper_light_secondary">@android:color/system_neutral1_100</color>
+    <color name="widget_on_wallpaper_dark_primary">@android:color/system_accent1_700</color>
+    <color name="widget_on_wallpaper_dark_secondary">@android:color/system_neutral1_800</color>
+
+    <!-- Behind text on the wallpaper, where the photo underneath is unknowable. -->
+    <color name="widget_text_shadow">#99000000</color>
+
+    <!--
+      Stands in for "some wallpaper" behind the editor's preview. A mid tone, so a
+      light choice and a dark choice are both legible enough to judge against it.
+    -->
+    <color name="preview_wallpaper_stand_in">@android:color/system_neutral1_500</color>
+
+    <color name="ic_launcher_background">@android:color/system_accent1_100</color>
+</resources>

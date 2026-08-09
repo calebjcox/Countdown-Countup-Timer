@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The widget drawn straight onto the wallpaper: no background, and a shadow behind
+  every line so the text survives a busy photo.
+
+  Identical to widget_timer.xml in structure and view ids, so WidgetRenderer stays
+  one code path and only swaps the layout resource. The colours here are
+  placeholders — WidgetPalette resolves the real ones at draw time from the
+  wallpaper's own hint, which is a different question from the system theme and
+  therefore cannot be answered by a -night qualifier.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="@dimen/widget_padding">
+
+    <TextView
+        android:id="@+id/widget_name"
+        style="@style/WidgetName.OnWallpaper"
+        android:textColor="@color/widget_on_wallpaper_light_secondary" />
+
+    <TextView
+        android:id="@+id/widget_value"
+        style="@style/WidgetValue.OnWallpaper"
+        android:textColor="@color/widget_on_wallpaper_light_primary" />
+
+    <Chronometer
+        android:id="@+id/widget_ticker"
+        style="@style/WidgetValue.OnWallpaper"
+        android:textColor="@color/widget_on_wallpaper_light_primary"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_footer"
+        style="@style/WidgetFooter.OnWallpaper"
+        android:textColor="@color/widget_on_wallpaper_light_secondary" />
+</LinearLayout>

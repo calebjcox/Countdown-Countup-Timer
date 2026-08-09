@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches whatever corner radius the launcher uses for widget backgrounds. -->
+    <dimen name="widget_corner_radius">@android:dimen/system_app_widget_background_radius</dimen>
+    <dimen name="widget_padding">10dp</dimen>
+
+    <dimen name="screen_margin">16dp</dimen>
+    <dimen name="section_spacing">20dp</dimen>
+</resources>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Countdowns</string>
+
+    <!-- Widget -->
+    <string name="widget_description">Count down to a date, or count up from one.</string>
+    <string name="widget_unconfigured">Tap to choose a timer</string>
+    <string name="until_target">until %1$s</string>
+    <string name="since_target">since %1$s</string>
+    <string name="preview_name">Christmas</string>
+    <string name="preview_value">4mo 16d</string>
+    <string name="preview_footer">until Dec 25, 2026</string>
+
+    <!-- Timer list -->
+    <string name="empty_title">No timers yet</string>
+    <string name="empty_body">Create a timer, then add a widget from your home screen to put it where you\'ll see it.</string>
+    <string name="add_timer">New timer</string>
+    <string name="how_to_add_a_widget">How to add a widget</string>
+    <string name="how_to_add_a_widget_body">Long-press an empty spot on your home screen, tap Widgets, find Countdowns, and drag it where you want it. You\'ll be asked which timer it should show.</string>
+    <string name="got_it">Got it</string>
+
+    <!-- Editor -->
+    <string name="new_timer_title">New timer</string>
+    <string name="edit_timer_title">Edit timer</string>
+    <string name="timer_name">Name</string>
+    <string name="target_section">Count to</string>
+    <string name="precision_date">A date</string>
+    <string name="precision_date_time">A date and time</string>
+    <string name="pick_date">Choose date</string>
+    <string name="pick_time">Choose time</string>
+    <string name="units_section">Units to show</string>
+    <string name="units_hint">Pick any combination. Seconds tick live on the widget; the units above them are filled in automatically so the clock reads correctly.</string>
+    <string name="style_section">Appearance</string>
+    <string name="long_labels">Spell out unit names</string>
+    <string name="show_background">Show widget background</string>
+    <string name="text_color">Text color on the wallpaper</string>
+    <string name="text_color_auto">Auto</string>
+    <string name="text_color_light">Light</string>
+    <string name="text_color_dark">Dark</string>
+    <string name="preview_section">Preview</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="delete_timer_title">Delete this timer?</string>
+    <string name="delete_timer_body">Any widgets showing it will ask you to pick a new one.</string>
+    <string name="cancel">Cancel</string>
+    <string name="name_required">Give the timer a name</string>
+
+    <!-- Unit chips -->
+    <string name="unit_years">Years</string>
+    <string name="unit_months">Months</string>
+    <string name="unit_weeks">Weeks</string>
+    <string name="unit_days">Days</string>
+    <string name="unit_hours">Hours</string>
+    <string name="unit_minutes">Minutes</string>
+    <string name="unit_seconds">Seconds</string>
+
+    <!-- Widget configuration -->
+    <string name="choose_timer_title">Choose a timer</string>
+    <string name="choose_timer_body">This widget will show the timer you pick. You can change it later by long-pressing the widget.</string>
+</resources>

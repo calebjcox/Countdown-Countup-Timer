@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The widget drawn on its own panel. Text colours come from the -night resource
+  pair, which is correct here because the text sits on a background this app
+  controls. For the transparent variant see widget_timer_wallpaper.xml.
+
+  One layout serves every size: the launcher is handed three RemoteViews built
+  from this file with different rows hidden, and picks whichever fits the cell.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="@dimen/widget_padding">
+
+    <TextView
+        android:id="@+id/widget_name"
+        style="@style/WidgetName"
+        android:textColor="@color/widget_text_secondary" />
+
+    <TextView
+        android:id="@+id/widget_value"
+        style="@style/WidgetValue"
+        android:textColor="@color/widget_text_primary" />
+
+    <Chronometer
+        android:id="@+id/widget_ticker"
+        style="@style/WidgetValue"
+        android:textColor="@color/widget_text_primary"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_footer"
+        style="@style/WidgetFooter"
+        android:textColor="@color/widget_text_secondary" />
+</LinearLayout>

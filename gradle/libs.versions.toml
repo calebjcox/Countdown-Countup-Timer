@@ -1,0 +1,26 @@
+# Every version is pinned. No dynamic versions, no version ranges — a checkout of
+# this repository resolves to the exact same bytes years from now.
+[versions]
+agp = "9.3.0"
+kotlin = "2.4.10"
+
+androidxCore = "1.19.0"
+appcompat = "1.7.1"
+material = "1.14.0"
+recyclerview = "1.4.0"
+
+junit = "4.13.2"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version.ref = "recyclerview" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+# Only the pure-JVM :core module needs a Kotlin plugin; AGP 9 compiles the app's
+# Kotlin itself and rejects org.jetbrains.kotlin.android being applied alongside it.
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
