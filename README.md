@@ -95,9 +95,8 @@ handled by the platform rather than by arithmetic on millisecond counts.
 
 The app collects no data and makes no network requests. See
 [PRIVACY.md](PRIVACY.md) for the full policy, or
-[the hosted version](https://calebjcox.github.io/Countdown-Countup-Timer/)
-once GitHub Pages is enabled for this repo (Settings → Pages → Source:
-Deploy from a branch → `main` / `docs`).
+[the hosted version](https://calebjcox.github.io/Countdown-Countup-Timer/) on
+GitHub Pages — this is the URL used in the Play Store listing.
 
 ## Project layout
 
