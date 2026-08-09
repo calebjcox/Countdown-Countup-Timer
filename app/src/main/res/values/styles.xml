@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shared by widget_timer.xml and widget_timer_wallpaper.xml. Those two layouts
+  exist only because RemoteViews cannot call setShadowLayer — it dispatches
+  single-argument remotable methods, and a shadow takes four — so the shadow has
+  to be declared in XML rather than chosen at draw time. Everything else about the
+  two is identical and lives here, where it cannot drift.
+-->
+<resources>
+
+    <style name="WidgetName">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <!--
+      A fixed-height weighted slot rather than wrap_content, so uniform auto-sizing
+      has a bounded box to work in; tabular figures stop the text jittering as a
+      ticking clock rolls through digits of different widths.
+    -->
+    <style name="WidgetValue">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:autoSizeMaxTextSize">44sp</item>
+        <item name="android:autoSizeMinTextSize">11sp</item>
+        <item name="android:autoSizeStepGranularity">1sp</item>
+        <item name="android:autoSizeTextType">uniform</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="WidgetFooter">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textSize">11sp</item>
+    </style>
+
+    <!--
+      The wallpaper variants add a shadow. A photo can be bright at one end of a
+      line of text and dark at the other, so neither colour alone is enough; the
+      shadow is what lets a single choice survive that.
+    -->
+    <style name="WidgetName.OnWallpaper">
+        <item name="android:shadowColor">@color/widget_text_shadow</item>
+        <item name="android:shadowDx">0</item>
+        <item name="android:shadowDy">1</item>
+        <item name="android:shadowRadius">4</item>
+    </style>
+
+    <style name="WidgetValue.OnWallpaper">
+        <item name="android:shadowColor">@color/widget_text_shadow</item>
+        <item name="android:shadowDx">0</item>
+        <item name="android:shadowDy">2</item>
+        <item name="android:shadowRadius">6</item>
+    </style>
+
+    <style name="WidgetFooter.OnWallpaper">
+        <item name="android:shadowColor">@color/widget_text_shadow</item>
+        <item name="android:shadowDx">0</item>
+        <item name="android:shadowDy">1</item>
+        <item name="android:shadowRadius">4</item>
+    </style>
+</resources>

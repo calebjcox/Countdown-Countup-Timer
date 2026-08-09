@@ -59,6 +59,29 @@ is looking at it, and the device is awake then. In deep doze an update can be
 deferred; the half-hourly `updatePeriodMillis` is a system-managed backstop that
 survives reboots, and unlocking the phone flushes pending alarms.
 
+## Reading on a wallpaper
+
+By default a widget has no background of its own — the text sits straight on the
+wallpaper, the way the platform clock widget does. That raises the same question a
+launcher has about its icon labels: light text or dark?
+
+The answer is a property of the **wallpaper**, not of the system theme, and the two
+disagree exactly when it matters — a phone in light mode with a dark photo behind
+the widget wants light text. So the widget asks the wallpaper, through the same
+`WallpaperColors.HINT_SUPPORTS_DARK_TEXT` signal the launcher uses. This needs no
+permission. Every line also carries a shadow, because one photo can be bright at
+one end of a line of text and dark at the other.
+
+If a wallpaper publishes no hint — live wallpapers are entitled not to — the widget
+falls back to the system theme. **Text color** in the editor overrides the whole
+thing with an explicit Light or Dark per timer. Switch the background on instead
+and the question disappears: text on our own panel is a matched pair with it, so
+the setting hides itself.
+
+One caveat: `ACTION_WALLPAPER_CHANGED` is not delivered to manifest receivers, so
+after changing wallpaper the colour settles on the widget's next refresh rather
+than instantly — at worst the half-hourly `updatePeriodMillis` backstop.
+
 ## Dates behave like dates
 
 Targets are stored as wall-clock times, not instants. A birthday on December 25th

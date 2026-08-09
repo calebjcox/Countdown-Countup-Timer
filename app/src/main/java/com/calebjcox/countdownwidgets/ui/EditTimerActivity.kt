@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.google.android.material.chip.Chip
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -17,11 +18,13 @@ import com.calebjcox.countdownwidgets.core.DurationMath
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.Rendering
+import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
 import com.calebjcox.countdownwidgets.data.Timer
 import com.calebjcox.countdownwidgets.data.TimerStore
 import com.calebjcox.countdownwidgets.databinding.ActivityEditTimerBinding
+import com.calebjcox.countdownwidgets.widget.WidgetPalette
 import com.calebjcox.countdownwidgets.widget.WidgetUpdater
 import java.time.Instant
 import java.time.LocalDate
@@ -44,7 +47,15 @@ class EditTimerActivity : AppCompatActivity() {
     private var targetTime: LocalTime = LocalTime.of(9, 0)
     private val fields = linkedSetOf<TimeField>()
 
-    /** Guards the chip listeners while [syncUi] writes their checked state. */
+    // Appearance is held here rather than read back off the switches. Doing it the
+    // other way round is what let a new timer save showBackground = false: the
+    // switch was only ever assigned when loading an existing timer, so a new one
+    // silently inherited whatever the layout happened to default to.
+    private var labelStyle = Timer.DEFAULT_LABEL_STYLE
+    private var textTheme = Timer.DEFAULT_TEXT_THEME
+    private var showBackground = Timer.DEFAULT_SHOW_BACKGROUND
+
+    /** Guards the chip and toggle listeners while [syncUi] writes their state. */
     private var syncing = false
 
     private val dateFormatter: DateTimeFormatter =
@@ -90,8 +101,9 @@ class EditTimerActivity : AppCompatActivity() {
         targetDate = timer.spec.target.toLocalDate()
         targetTime = timer.spec.target.toLocalTime()
         fields.addAll(timer.spec.orderedFields)
-        binding.longLabels.isChecked = timer.labelStyle == LabelStyle.LONG
-        binding.showBackground.isChecked = timer.showBackground
+        labelStyle = timer.labelStyle
+        textTheme = timer.textTheme
+        showBackground = timer.showBackground
     }
 
     private fun restore(state: Bundle) {
@@ -99,6 +111,9 @@ class EditTimerActivity : AppCompatActivity() {
         targetDate = LocalDate.parse(state.getString(STATE_DATE))
         targetTime = LocalTime.parse(state.getString(STATE_TIME))
         state.getStringArrayList(STATE_FIELDS)?.forEach { fields.add(TimeField.valueOf(it)) }
+        labelStyle = LabelStyle.valueOf(state.getString(STATE_LABEL_STYLE, labelStyle.name))
+        textTheme = TextTheme.valueOf(state.getString(STATE_TEXT_THEME, textTheme.name))
+        showBackground = state.getBoolean(STATE_SHOW_BACKGROUND, showBackground)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -107,6 +122,9 @@ class EditTimerActivity : AppCompatActivity() {
         outState.putString(STATE_DATE, targetDate.toString())
         outState.putString(STATE_TIME, targetTime.toString())
         outState.putStringArrayList(STATE_FIELDS, ArrayList(fields.map { it.name }))
+        outState.putString(STATE_LABEL_STYLE, labelStyle.name)
+        outState.putString(STATE_TEXT_THEME, textTheme.name)
+        outState.putBoolean(STATE_SHOW_BACKGROUND, showBackground)
     }
 
     // -------------------------------------------------------------------- ui
@@ -146,10 +164,28 @@ class EditTimerActivity : AppCompatActivity() {
             }
         }
 
+        binding.textThemeGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked || syncing) return@addOnButtonCheckedListener
+            textTheme = when (checkedId) {
+                R.id.text_theme_light -> TextTheme.LIGHT
+                R.id.text_theme_dark -> TextTheme.DARK
+                else -> TextTheme.AUTO
+            }
+            refresh()
+        }
+
         binding.date.setOnClickListener { showDatePicker() }
         binding.time.setOnClickListener { showTimePicker() }
-        binding.longLabels.setOnCheckedChangeListener { _, _ -> refresh() }
-        binding.showBackground.setOnCheckedChangeListener { _, _ -> refresh() }
+        binding.longLabels.setOnCheckedChangeListener { _, isChecked ->
+            if (syncing) return@setOnCheckedChangeListener
+            labelStyle = if (isChecked) LabelStyle.LONG else LabelStyle.SHORT
+            refresh()
+        }
+        binding.showBackground.setOnCheckedChangeListener { _, isChecked ->
+            if (syncing) return@setOnCheckedChangeListener
+            showBackground = isChecked
+            refresh()
+        }
         binding.save.setOnClickListener { save() }
     }
 
@@ -177,11 +213,26 @@ class EditTimerActivity : AppCompatActivity() {
         binding.precisionGroup.check(
             if (precision == Precision.DATE) R.id.precision_date else R.id.precision_date_time,
         )
+        binding.longLabels.isChecked = labelStyle == LabelStyle.LONG
+        binding.showBackground.isChecked = showBackground
+        binding.textThemeGroup.check(
+            when (textTheme) {
+                TextTheme.AUTO -> R.id.text_theme_auto
+                TextTheme.LIGHT -> R.id.text_theme_light
+                TextTheme.DARK -> R.id.text_theme_dark
+            },
+        )
         syncing = false
 
         val showTime = precision == Precision.DATE_TIME
         binding.clockUnits.visibility = if (showTime) View.VISIBLE else View.GONE
         binding.time.visibility = if (showTime) View.VISIBLE else View.GONE
+
+        // On its own panel the text and the panel are a matched pair, so offering a
+        // choice there would only manufacture unreadable combinations.
+        val onWallpaper = !showBackground
+        binding.textThemeLabel.visibility = if (onWallpaper) View.VISIBLE else View.GONE
+        binding.textThemeGroup.visibility = if (onWallpaper) View.VISIBLE else View.GONE
 
         binding.date.text = targetDate.format(dateFormatter)
         binding.time.text = targetTime.format(timeFormatter)
@@ -191,12 +242,28 @@ class EditTimerActivity : AppCompatActivity() {
             ZoneId.systemDefault(),
             spec,
         )
-        binding.previewValue.text = Rendering.formatDisplay(display, labelStyle())
+        binding.previewValue.text = Rendering.formatDisplay(display, labelStyle)
         binding.previewFooter.text = TimerSummary.target(this, spec)
+        syncPreviewColors(onWallpaper)
     }
 
-    private fun labelStyle() =
-        if (binding.longLabels.isChecked) LabelStyle.LONG else LabelStyle.SHORT
+    /**
+     * Shows the colours the widget will actually use. A transparent widget is
+     * previewed over a flat mid-tone rather than the app's own surface: light text
+     * on a light card would look broken here while being exactly right on the
+     * wallpaper, and the point of the preview is to judge that choice.
+     */
+    private fun syncPreviewColors(onWallpaper: Boolean) {
+        val colors = WidgetPalette.forAppearance(this, showBackground, textTheme)
+        binding.previewValue.setTextColor(colors.primary)
+        binding.previewFooter.setTextColor(colors.secondary)
+        binding.previewCard.setCardBackgroundColor(
+            ContextCompat.getColor(
+                this,
+                if (onWallpaper) R.color.preview_wallpaper_stand_in else R.color.widget_background,
+            ),
+        )
+    }
 
     private fun targetDateTime(): LocalDateTime = LocalDateTime.of(
         targetDate,
@@ -270,8 +337,9 @@ class EditTimerActivity : AppCompatActivity() {
                 id = id,
                 name = name,
                 spec = TimerSpec.of(targetDateTime(), precision, fields),
-                labelStyle = labelStyle(),
-                showBackground = binding.showBackground.isChecked,
+                labelStyle = labelStyle,
+                textTheme = textTheme,
+                showBackground = showBackground,
             ),
         )
         WidgetUpdater.updateForTimer(this, id)
@@ -304,6 +372,9 @@ class EditTimerActivity : AppCompatActivity() {
         private const val STATE_DATE = "date"
         private const val STATE_TIME = "time"
         private const val STATE_FIELDS = "fields"
+        private const val STATE_LABEL_STYLE = "labelStyle"
+        private const val STATE_TEXT_THEME = "textTheme"
+        private const val STATE_SHOW_BACKGROUND = "showBackground"
 
         fun editIntent(context: Context, timerId: String?): Intent =
             Intent(context, EditTimerActivity::class.java)

@@ -33,6 +33,10 @@
     <string name="style_section">Appearance</string>
     <string name="long_labels">Spell out unit names</string>
     <string name="show_background">Show widget background</string>
+    <string name="text_color">Text color on the wallpaper</string>
+    <string name="text_color_auto">Auto</string>
+    <string name="text_color_light">Light</string>
+    <string name="text_color_dark">Dark</string>
     <string name="preview_section">Preview</string>
     <string name="save">Save</string>
     <string name="delete">Delete</string>

@@ -9,7 +9,7 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="com.calebjcox.countdownwidgets.ui.WidgetConfigActivity"
     android:description="@string/widget_description"
-    android:initialLayout="@layout/widget_timer"
+    android:initialLayout="@layout/widget_timer_wallpaper"
     android:minHeight="40dp"
     android:minWidth="110dp"
     android:previewLayout="@layout/widget_preview"

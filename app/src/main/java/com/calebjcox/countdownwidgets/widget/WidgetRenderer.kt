@@ -71,13 +71,15 @@ object WidgetRenderer {
         detail: Detail,
         elapsedRealtime: Long,
     ): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_timer)
+        val views = RemoteViews(context.packageName, layoutFor(timer))
 
-        views.setInt(
-            R.id.widget_root,
-            "setBackgroundResource",
-            if (timer.showBackground) R.drawable.widget_background else 0,
-        )
+        // Resolved rather than left to the layout: on the wallpaper the choice
+        // depends on the wallpaper itself, which no resource qualifier can express.
+        val palette = WidgetPalette.forTimer(context, timer)
+        views.setTextColor(R.id.widget_name, palette.secondary)
+        views.setTextColor(R.id.widget_value, palette.primary)
+        views.setTextColor(R.id.widget_ticker, palette.primary)
+        views.setTextColor(R.id.widget_footer, palette.secondary)
 
         val showName = detail != Detail.VALUE && timer.name.isNotBlank()
         views.setViewVisibility(R.id.widget_name, if (showName) View.VISIBLE else View.GONE)
@@ -118,6 +120,15 @@ object WidgetRenderer {
     }
 
     /**
+     * The two layouts differ only in having a background and a text shadow. They
+     * are separate files rather than one file configured at runtime because
+     * `RemoteViews` dispatches only single-argument remotable methods, and
+     * `setShadowLayer` takes four — so a shadow can only be declared in XML.
+     */
+    private fun layoutFor(timer: Timer): Int =
+        if (timer.showBackground) R.layout.widget_timer else R.layout.widget_timer_wallpaper
+
+    /**
      * Embeds the calendar part into the chronometer's own format string. The `%s` is
      * where `Chronometer` substitutes the running clock; any literal percent in the
      * head has to be escaped or `String.format` would choke on it.
@@ -140,10 +151,12 @@ object WidgetRenderer {
      * What a widget shows when it has no timer behind it — after the configuration
      * screen was cancelled, or once the timer it pointed at was deleted. Tapping it
      * reopens the picker rather than leaving a dead tile on the home screen.
+     *
+     * Always the panel layout, whatever the eventual timer prefers: a prompt to tap
+     * has to be findable, and there is no timer yet to say how it should look.
      */
     private fun unconfigured(context: Context, appWidgetId: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_timer)
-        views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_background)
         views.setViewVisibility(R.id.widget_name, View.GONE)
         views.setViewVisibility(R.id.widget_ticker, View.GONE)
         views.setViewVisibility(R.id.widget_footer, View.GONE)

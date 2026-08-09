@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  One layout serves every size. The launcher is handed three RemoteViews built from
-  this file with different rows hidden, and picks whichever fits the cell.
+  The widget drawn on its own panel. Text colours come from the -night resource
+  pair, which is correct here because the text sits on a background this app
+  controls. For the transparent variant see widget_timer_wallpaper.xml.
 
-  The value row is a fixed-height weighted slot rather than wrap_content so that
-  uniform auto-sizing has a bounded box to work in; tabular figures keep the text
-  from jittering as a ticking clock rolls through digits of different widths.
+  One layout serves every size: the launcher is handed three RemoteViews built
+  from this file with different rows hidden, and picks whichever fits the cell.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -18,52 +18,22 @@
 
     <TextView
         android:id="@+id/widget_name"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:gravity="center"
-        android:maxLines="1"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="12sp" />
+        style="@style/WidgetName"
+        android:textColor="@color/widget_text_secondary" />
 
     <TextView
         android:id="@+id/widget_value"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:autoSizeMaxTextSize="44sp"
-        android:autoSizeMinTextSize="11sp"
-        android:autoSizeStepGranularity="1sp"
-        android:autoSizeTextType="uniform"
-        android:fontFeatureSettings="tnum"
-        android:gravity="center"
-        android:maxLines="1"
-        android:textColor="@color/widget_text_primary"
-        android:textStyle="bold" />
+        style="@style/WidgetValue"
+        android:textColor="@color/widget_text_primary" />
 
     <Chronometer
         android:id="@+id/widget_ticker"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:autoSizeMaxTextSize="44sp"
-        android:autoSizeMinTextSize="11sp"
-        android:autoSizeStepGranularity="1sp"
-        android:autoSizeTextType="uniform"
-        android:fontFeatureSettings="tnum"
-        android:gravity="center"
-        android:maxLines="1"
+        style="@style/WidgetValue"
         android:textColor="@color/widget_text_primary"
-        android:textStyle="bold"
         android:visibility="gone" />
 
     <TextView
         android:id="@+id/widget_footer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:gravity="center"
-        android:maxLines="1"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="11sp" />
+        style="@style/WidgetFooter"
+        android:textColor="@color/widget_text_secondary" />
 </LinearLayout>

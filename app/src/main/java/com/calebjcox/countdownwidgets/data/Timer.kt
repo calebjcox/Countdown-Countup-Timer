@@ -2,6 +2,7 @@ package com.calebjcox.countdownwidgets.data
 
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
+import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
 import org.json.JSONArray
@@ -18,8 +19,10 @@ data class Timer(
     val id: String,
     val name: String,
     val spec: TimerSpec,
-    val labelStyle: LabelStyle = LabelStyle.SHORT,
-    val showBackground: Boolean = true,
+    val labelStyle: LabelStyle = DEFAULT_LABEL_STYLE,
+    /** Only consulted when [showBackground] is false; see WidgetPalette. */
+    val textTheme: TextTheme = DEFAULT_TEXT_THEME,
+    val showBackground: Boolean = DEFAULT_SHOW_BACKGROUND,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put(KEY_ID, id)
@@ -28,16 +31,26 @@ data class Timer(
         put(KEY_PRECISION, spec.precision.name)
         put(KEY_FIELDS, JSONArray().also { array -> spec.orderedFields.forEach { array.put(it.name) } })
         put(KEY_LABEL_STYLE, labelStyle.name)
+        put(KEY_TEXT_THEME, textTheme.name)
         put(KEY_SHOW_BACKGROUND, showBackground)
     }
 
     companion object {
+        // Named once and used for the constructor defaults, for anything read back
+        // from storage without them, and by the editor. Spelling these out in more
+        // than one place is how a new timer came to save showBackground = false
+        // while the model claimed the opposite.
+        val DEFAULT_LABEL_STYLE = LabelStyle.SHORT
+        val DEFAULT_TEXT_THEME = TextTheme.AUTO
+        const val DEFAULT_SHOW_BACKGROUND = false
+
         private const val KEY_ID = "id"
         private const val KEY_NAME = "name"
         private const val KEY_TARGET = "target"
         private const val KEY_PRECISION = "precision"
         private const val KEY_FIELDS = "fields"
         private const val KEY_LABEL_STYLE = "labelStyle"
+        private const val KEY_TEXT_THEME = "textTheme"
         private const val KEY_SHOW_BACKGROUND = "showBackground"
 
         fun newId(): String = UUID.randomUUID().toString()
@@ -67,8 +80,12 @@ data class Timer(
                 name = json.optString(KEY_NAME, ""),
                 spec = TimerSpec.of(target, precision, fields),
                 labelStyle = enumOf<LabelStyle>(json.optString(KEY_LABEL_STYLE))
-                    ?: LabelStyle.SHORT,
-                showBackground = json.optBoolean(KEY_SHOW_BACKGROUND, true),
+                    ?: DEFAULT_LABEL_STYLE,
+                // Absent from anything saved before the setting existed, which is
+                // exactly the case AUTO is the right answer for.
+                textTheme = enumOf<TextTheme>(json.optString(KEY_TEXT_THEME))
+                    ?: DEFAULT_TEXT_THEME,
+                showBackground = json.optBoolean(KEY_SHOW_BACKGROUND, DEFAULT_SHOW_BACKGROUND),
             )
         }.getOrNull()
 
