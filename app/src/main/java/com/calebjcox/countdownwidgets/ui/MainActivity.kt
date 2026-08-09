@@ -3,9 +3,11 @@ package com.calebjcox.countdownwidgets.ui
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.data.AppTheme
 import com.calebjcox.countdownwidgets.data.TimerStore
 import com.calebjcox.countdownwidgets.databinding.ActivityMainBinding
 
@@ -39,6 +41,11 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
 
+                R.id.action_app_theme -> {
+                    showThemePicker()
+                    true
+                }
+
                 else -> false
             }
         }
@@ -63,6 +70,28 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.how_to_add_a_widget)
             .setMessage(R.string.how_to_add_a_widget_body)
             .setPositiveButton(R.string.got_it, null)
+            .show()
+    }
+
+    private fun showThemePicker() {
+        val themes = AppTheme.entries.toTypedArray()
+        val labels = arrayOf(
+            getString(R.string.app_theme_auto),
+            getString(R.string.app_theme_light),
+            getString(R.string.app_theme_dark),
+        )
+        val current = themes.indexOf(store.appTheme())
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.app_theme_dialog_title)
+            .setSingleChoiceItems(labels, current) { dialog, which ->
+                val theme = themes[which]
+                store.setAppTheme(theme)
+                AppCompatDelegate.setDefaultNightMode(theme.nightMode)
+                dialog.dismiss()
+                recreate()
+            }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 }

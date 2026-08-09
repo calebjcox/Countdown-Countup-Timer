@@ -158,9 +158,22 @@ class TimerStore(context: Context) {
         BackupManager(appContext).dataChanged()
     }
 
+    // ------------------------------------------------------------------ app theme
+
+    /** The manual light/dark override, or [AppTheme.AUTO] when unset or unrecognized. */
+    fun appTheme(): AppTheme =
+        prefs.getString(KEY_APP_THEME, null)?.let { name ->
+            runCatching { enumValueOf<AppTheme>(name) }.getOrNull()
+        } ?: AppTheme.AUTO
+
+    fun setAppTheme(theme: AppTheme) {
+        commit(prefs.edit().putString(KEY_APP_THEME, theme.name))
+    }
+
     private companion object {
         const val PREFS_NAME = "timers"
         const val KEY_TIMERS = "timers"
         const val WIDGET_PREFIX = "widget."
+        const val KEY_APP_THEME = "app_theme"
     }
 }

@@ -19,6 +19,13 @@
     <string name="how_to_add_a_widget_body">Long-press an empty spot on your home screen, tap Widgets, find Countdowns, and drag it where you want it. You\'ll be asked which timer it should show.</string>
     <string name="got_it">Got it</string>
 
+    <!-- Theme -->
+    <string name="app_theme_title">Theme</string>
+    <string name="app_theme_dialog_title">Choose a theme</string>
+    <string name="app_theme_auto">Auto (system default)</string>
+    <string name="app_theme_light">Light</string>
+    <string name="app_theme_dark">Dark</string>
+
     <!-- Editor -->
     <string name="new_timer_title">New timer</string>
     <string name="edit_timer_title">Edit timer</string>
