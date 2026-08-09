@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  updatePeriodMillis is a safety net, not the update mechanism. The real refreshes
+  come from this app's own alarms, which land exactly on the boundary where the text
+  changes. This half-hourly system-managed update costs nothing extra — it never
+  wakes the device, and it is re-registered across reboots by the framework — but it
+  guarantees a widget cannot stay wrong indefinitely if an alarm is ever lost.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="com.calebjcox.countdownwidgets.ui.WidgetConfigActivity"
     android:description="@string/widget_description"
@@ -9,13 +16,6 @@
     android:resizeMode="horizontal|vertical"
     android:targetCellHeight="1"
     android:targetCellWidth="2"
+    android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen"
-    android:widgetFeatures="reconfigurable"
-    android:updatePeriodMillis="1800000" />
-<!--
-  updatePeriodMillis is a safety net, not the update mechanism. The real refreshes
-  come from this app's own alarms, which land exactly on the boundary where the text
-  changes. This half-hourly system-managed update costs nothing extra — it never
-  wakes the device, and it is re-registered across reboots by the framework — but it
-  guarantees a widget cannot stay wrong indefinitely if an alarm is ever lost.
--->
+    android:widgetFeatures="reconfigurable" />
