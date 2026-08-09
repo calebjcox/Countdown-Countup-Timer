@@ -23,13 +23,10 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      # Printed so the pinned compileSdk can be checked against what the SDK
-      # repository actually publishes, rather than guessed at.
-      - name: Available SDK platforms
-        run: sdkmanager --list | grep -E "platforms;android-3[0-9]|build-tools;3[0-9]\." | sort -u
-
+      # Platform packages carry a minor version now: there is no "android-37",
+      # only android-37.0 / 37.1 / 37.2. compileSdk = 37 resolves to android-37.0.
       - name: Install SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+        run: sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
 
       - uses: gradle/actions/setup-gradle@v4
 

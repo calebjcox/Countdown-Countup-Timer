@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.calebjcox.countdownwidgets"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.calebjcox.countdownwidgets"
@@ -16,7 +16,7 @@ android {
         // corner-radius dimensions — landed here, so there is no version branching
         // anywhere in the code.
         minSdk = 31
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
     }

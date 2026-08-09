@@ -88,7 +88,7 @@ the scheduled refresh lands exactly on the boundary where the text changes.
 `minSdk` is 31 (Android 12), which is where responsive widget layouts,
 reconfigurable widgets, the Material You system palette and the widget
 corner-radius dimensions all landed — so there is no version branching in the code
-at all. Built against Android 16 (API 36).
+at all. Built against Android 17 (API 37), which is what a Pixel 10 runs.
 
 Runtime dependencies are `kotlin-stdlib`, `core-ktx`, `appcompat`, Material
 Components and RecyclerView. No Glance, no Compose, no WorkManager, no Room, no
