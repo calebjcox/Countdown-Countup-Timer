@@ -11,6 +11,16 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
+    # Job-wide rather than on the build step alone: lintRelease compiles the release
+    # variant too, so it passes through the same signing config and needs the same
+    # key. build.yml deliberately gets none of these — debug signs with the committed
+    # debug.keystore and must keep working for anyone who forks this repo.
+    env:
+      KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -55,16 +65,40 @@ jobs:
           echo "APP_VERSION_CODE=$(( major * 10000 + minor * 100 + patch ))" >> "$GITHUB_ENV"
           echo "APP_VERSION_NAME=$version" >> "$GITHUB_ENV"
 
+      # Both suites, not just :core:test. The backup format is the only copy of a
+      # timer a user may have kept for years, and until now the checks covering it
+      # ran on every push to main but not on the path that actually reaches people.
       - name: Unit tests
-        run: ./gradlew :core:test
+        run: ./gradlew :core:test :app:testDebugUnitTest
 
-      - name: Build release APK
-        run: ./gradlew :app:assembleRelease
+      - name: Lint
+        run: ./gradlew :app:lintRelease
 
-      # No signing keystore configured yet, so this is an unsigned release
-      # build. Wire up a signingConfig (reading from secrets) once one exists.
+      # An AAB, not an APK: Play has required App Bundles for new apps since 2021,
+      # and there is no longer anything that consumes a release APK here. Signed with
+      # the upload key from the secrets above — see "Releasing" in the README.
+      - name: Build release bundle
+        run: ./gradlew :app:bundleRelease
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/app-release-unsigned.apk
+          files: app/build/outputs/bundle/release/app-release.aab
           generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      # Uploading to Play is still done by hand: download the .aab attached to the
+      # release above and drop it into the Play Console. When that moves into CI it
+      # is one step here, after the release is created:
+      #
+      #   - name: Upload to Play
+      #     uses: r0adkll/upload-google-play@v1
+      #     with:
+      #       serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      #       packageName: com.calebjcox.countdownwidgets
+      #       releaseFiles: app/build/outputs/bundle/release/app-release.aab
+      #       track: internal
+      #
+      # PLAY_SERVICE_ACCOUNT_JSON is the only new secret it needs: a Play Console
+      # service-account key with the "Release apps to testing tracks" permission.
+      # Nothing above has to change — the bundle is already built and signed.

@@ -204,6 +204,66 @@ this key can only ever sign `com.calebjcox.countdownwidgets.debug` — it cannot
 sign, update, or impersonate the released app. The key that signs releases is not
 in this repository and never will be.
 
+## Releasing
+
+Releases are signed with an **upload key** that lives only in GitHub Actions
+secrets, and the build reads it from four environment variables:
+
+| Variable | Holds |
+| --- | --- |
+| `KEYSTORE_B64` | the keystore itself, base64-encoded |
+| `KEYSTORE_PASSWORD` | the keystore password |
+| `KEY_ALIAS` | which key inside the keystore to sign with |
+| `KEY_PASSWORD` | that key's password |
+
+Environment variables and nothing else — there is no `keystore.properties` and no
+fallback to one. A file on disk is a second place the key can leak from, and a
+second thing that can quietly disagree with CI.
+
+The keystore was made once, with the JDK's own tool, and its `.jks` is kept offline:
+
+```
+keytool -genkeypair -v -keystore upload.jks -alias upload \
+        -keyalg RSA -keysize 2048 -validity 10000
+base64 -w0 upload.jks      # this is KEYSTORE_B64
+```
+
+Back that file up somewhere you will still have in five years. Losing it does not
+lock you out of Play — Google can reset an upload key — but it is a support ticket
+and a wait, not a five-minute fix.
+
+One trap worth knowing, because it costs a failed release run to discover: `keytool`
+writes **PKCS12** by default, and PKCS12 cannot hold a key password that differs
+from the store password. Given `-keypass`, `keytool` prints a warning and then
+ignores it. So unless the keystore was explicitly created with `-storetype JKS`,
+`KEY_PASSWORD` must be set to the same value as `KEYSTORE_PASSWORD` — whatever
+`-keypass` was asked for at the time. The build checks this and says so by name
+rather than failing later in the signing step.
+
+**Cutting a release** is one push:
+
+```
+git tag v1.2.3 && git push origin v1.2.3
+```
+
+The tag drives the version, so nothing in the source is bumped by hand: `v1.2.3`
+becomes `versionName` `1.2.3` and `versionCode` `10203`. Actions runs both test
+suites and lint, builds a signed **App Bundle**, and attaches `app-release.aab` to
+the GitHub Release. Upload that file in the Play Console. Pushing to Play from CI
+is a single extra step in [`release.yml`](.github/workflows/release.yml), sketched
+in a comment there for when it is wanted.
+
+Two things follow from Play App Signing, which this app uses. The key above is the
+*upload* key: Play verifies it, then re-signs with the app signing key it holds, so
+the artifact built here is not the one that lands on phones and an APK built from
+this repo can never be installed over a Play install. Sideloading therefore stays
+on the debug APK described above, which is a separate app anyway.
+
+Building a release locally works the same way and needs the same four variables
+exported. Without them any release task — `bundleRelease`, `assembleRelease`,
+`lintRelease` — fails immediately, on purpose: an unsigned build that looks
+successful is the one outcome worth ruling out. Debug builds need none of them.
+
 ## Adding a widget
 
 Long-press an empty spot on the home screen → **Widgets** → **Countdowns**, then
