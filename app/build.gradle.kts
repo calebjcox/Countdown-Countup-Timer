@@ -9,14 +9,20 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-// The upload key, as four environment variables and nothing else. There is no
+// The upload key, as three environment variables and nothing else. There is no
 // keystore.properties and no fallback to one: a file on disk is a second place the
 // key can leak from and a second thing that can silently disagree with CI, and the
 // release workflow already has these as repository secrets.
+//
+// Three, not four, because there is no separate key password to hold. The upload
+// keystore is PKCS12 — what keytool has written by default since JDK 9 — and PKCS12
+// has no room for a key password that differs from the store password. Ask keytool
+// for one with -keypass and it warns that it is ignoring you, then does. So the
+// store password unlocks the key as well, and a KEY_PASSWORD variable could only
+// ever be a duplicate of KEYSTORE_PASSWORD or a lie.
 val keystoreBase64 = providers.environmentVariable("KEYSTORE_B64")
 val keystorePassword = providers.environmentVariable("KEYSTORE_PASSWORD")
 val uploadKeyAlias = providers.environmentVariable("KEY_ALIAS")
-val uploadKeyPassword = providers.environmentVariable("KEY_PASSWORD")
 
 val uploadKeystore = layout.buildDirectory.file("signing/upload.jks")
 
@@ -41,7 +47,6 @@ val prepareUploadKeystore = tasks.register("prepareUploadKeystore") {
     val encoded = keystoreBase64
     val storePassword = keystorePassword
     val alias = uploadKeyAlias
-    val keyPassword = uploadKeyPassword
     val target = uploadKeystore
 
     doLast {
@@ -58,7 +63,6 @@ val prepareUploadKeystore = tasks.register("prepareUploadKeystore") {
             "KEYSTORE_B64" to encoded,
             "KEYSTORE_PASSWORD" to storePassword,
             "KEY_ALIAS" to alias,
-            "KEY_PASSWORD" to keyPassword,
         ).filter { (_, value) -> value.orNull.isNullOrBlank() }.map { (name, _) -> name }
 
         if (missing.isNotEmpty()) {
@@ -115,24 +119,36 @@ val prepareUploadKeystore = tasks.register("prepareUploadKeystore") {
 
         if (!store.containsAlias(alias.get())) {
             throw GradleException(
-                "The keystore has no key aliased \"${alias.get()}\". It contains: " +
+                "The keystore has nothing aliased \"${alias.get()}\". It contains: " +
                     store.aliases().toList().joinToString(", ").ifEmpty { "(nothing)" } +
                     ". Fix KEY_ALIAS.",
             )
         }
 
-        // Proves KEY_ALIAS and KEY_PASSWORD agree with the store now, rather than
-        // letting the signing task discover it after a full release compile.
+        // Present is not the same as usable: an alias can name a trusted certificate
+        // with no private key behind it, which satisfies containsAlias and signs
+        // nothing.
+        if (!store.isKeyEntry(alias.get())) {
+            throw GradleException(
+                "\"${alias.get()}\" is in the keystore, but it is a certificate rather " +
+                    "than a signing key — there is no private key under that alias to " +
+                    "sign with.",
+            )
+        }
+
+        // Proves the key actually comes out, rather than letting the signing task
+        // discover otherwise after a full release compile. The store password is the
+        // key password too — see the note where these variables are declared.
         try {
-            store.getKey(alias.get(), keyPassword.get().toCharArray())
+            store.getKey(alias.get(), storePassword.get().toCharArray())
         } catch (e: Exception) {
             throw GradleException(
-                "The key \"${alias.get()}\" could not be unlocked, so KEY_PASSWORD is " +
-                    "wrong: ${e.message?.trimEnd('.')}. Worth checking first: keytool " +
-                    "writes PKCS12 by default, and for a PKCS12 keystore it ignores a " +
-                    "-keypass that differs from -storepass — it says so, then does it " +
-                    "anyway. If this keystore was made that way, KEY_PASSWORD has to be " +
-                    "the same as KEYSTORE_PASSWORD, whatever -keypass was asked for.",
+                "The key \"${alias.get()}\" would not open with KEYSTORE_PASSWORD: " +
+                    "${e.message?.trimEnd('.')}. This build assumes a PKCS12 keystore, " +
+                    "where the key password and the store password are necessarily the " +
+                    "same. A keystore created with -storetype JKS can hold a genuinely " +
+                    "separate key password, and if this one does it needs a KEY_PASSWORD " +
+                    "variable adding back.",
                 e,
             )
         }
@@ -197,7 +213,9 @@ android {
             storeFile = uploadKeystore.get().asFile
             storePassword = keystorePassword.getOrElse("")
             keyAlias = uploadKeyAlias.getOrElse("")
-            keyPassword = uploadKeyPassword.getOrElse("")
+            // The same password twice, and not a mistake: PKCS12 keeps no separate
+            // one for the key.
+            keyPassword = keystorePassword.getOrElse("")
         }
     }
 

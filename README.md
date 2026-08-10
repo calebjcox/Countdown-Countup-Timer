@@ -207,14 +207,13 @@ in this repository and never will be.
 ## Releasing
 
 Releases are signed with an **upload key** that lives only in GitHub Actions
-secrets, and the build reads it from four environment variables:
+secrets, and the build reads it from three environment variables:
 
 | Variable | Holds |
 | --- | --- |
 | `KEYSTORE_B64` | the keystore itself, base64-encoded |
-| `KEYSTORE_PASSWORD` | the keystore password |
+| `KEYSTORE_PASSWORD` | the keystore password, which unlocks the key too |
 | `KEY_ALIAS` | which key inside the keystore to sign with |
-| `KEY_PASSWORD` | that key's password |
 
 Environment variables and nothing else — there is no `keystore.properties` and no
 fallback to one. A file on disk is a second place the key can leak from, and a
@@ -232,13 +231,16 @@ Back that file up somewhere you will still have in five years. Losing it does no
 lock you out of Play — Google can reset an upload key — but it is a support ticket
 and a wait, not a five-minute fix.
 
-One trap worth knowing, because it costs a failed release run to discover: `keytool`
-writes **PKCS12** by default, and PKCS12 cannot hold a key password that differs
-from the store password. Given `-keypass`, `keytool` prints a warning and then
-ignores it. So unless the keystore was explicitly created with `-storetype JKS`,
-`KEY_PASSWORD` must be set to the same value as `KEYSTORE_PASSWORD` — whatever
-`-keypass` was asked for at the time. The build checks this and says so by name
-rather than failing later in the signing step.
+There is no fourth variable for a key password, and that is not an oversight.
+`keytool` writes **PKCS12** by default, and PKCS12 has nowhere to put a key
+password that differs from the store password — ask for one with `-keypass` and
+`keytool` warns that it is ignoring you, then does. So `KEYSTORE_PASSWORD` unlocks
+the key as well, and a `KEY_PASSWORD` could only ever repeat it or be wrong.
+
+The exception is a keystore made with `-storetype JKS`, which can hold a genuinely
+separate key password. This one is not, and the build checks: if the key ever fails
+to open with the store password it says so, and says that a JKS keystore would need
+the variable adding back.
 
 **Cutting a release** is one push:
 
