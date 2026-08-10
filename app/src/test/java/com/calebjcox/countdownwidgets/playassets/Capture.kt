@@ -13,6 +13,7 @@ import android.widget.ScrollView
 import androidx.appcompat.app.AppCompatDelegate
 import java.awt.image.BufferedImage
 import java.io.File
+import java.time.ZoneId
 import javax.imageio.ImageIO
 import org.junit.Assert.assertTrue
 import org.robolectric.RuntimeEnvironment
@@ -90,15 +91,47 @@ object Capture {
             .also { it.eraseColor(background) }
 
     /**
-     * A whole activity, rendered at [spec]'s pixel size.
+     * A whole activity, rendered at [spec]'s pixel size with a status bar above it.
+     *
+     * The activity is laid out into the height that is left over, rather than the full
+     * screen, which is what actually happens on a device: every layout here sets
+     * `fitsSystemWindows="true"`, and the framework insets the content below the status
+     * bar. Robolectric has no insets to apply, so without this the app bar would sit
+     * under the clock.
      *
      * The bitmap starts filled with the theme's window background because a themed
-     * decor background can leave pixels untouched, and a screenshot with holes in it
-     * is a screenshot Play rejects.
+     * decor background can leave pixels untouched, and a screenshot with holes in it is
+     * a screenshot Play rejects.
      */
-    fun activity(activity: Activity, spec: DeviceSpec): Bitmap {
+    fun activity(activity: Activity, spec: DeviceSpec, dark: Boolean, nowMillis: Long): Bitmap {
+        val density = activity.resources.displayMetrics.density
+        val barPx = StatusBar.heightPx(density)
+
         val bitmap = bitmap(spec.widthPx, spec.heightPx, windowBackground(activity))
-        draw(activity.window.decorView, spec.widthPx, spec.heightPx, bitmap)
+        draw(
+            activity.window.decorView,
+            spec.widthPx,
+            spec.heightPx - barPx,
+            bitmap,
+            atY = barPx,
+        )
+
+        // Sampled from the row the activity just drew rather than resolved from a theme
+        // attribute: whatever the app bar actually painted is what the bar has to match,
+        // and reading it back is the only way to be certain there is no seam.
+        val seam = bitmap.getPixel(spec.widthPx / 2, barPx + 1)
+
+        val canvas = Canvas(bitmap)
+        StatusBar.fill(canvas, spec.widthPx, density, seam)
+        StatusBar.draw(
+            canvas = canvas,
+            widthPx = spec.widthPx,
+            density = density,
+            dark = dark,
+            nowMillis = nowMillis,
+            zone = ZoneId.systemDefault(),
+            onWallpaper = false,
+        )
         return bitmap
     }
 

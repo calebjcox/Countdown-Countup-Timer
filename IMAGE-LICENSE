@@ -1,0 +1,24 @@
+Photograph copyright (c) 2022 Caleb Cox. All rights reserved.
+
+This notice covers:
+
+    app/src/test/resources/wallpaper/kalalau-valley.jpg
+    play-assets/*/0[5-8]-widgets-*.png
+
+The first is an original photograph. The rest are the home-screen screenshots the
+asset generator composites on top of it, so they contain the photograph and are
+covered here for the same reason. Every other file in this repository — including the
+other twenty-four screenshots, which contain no photograph — is covered by the MIT
+license in LICENSE.
+
+These files are NOT licensed under MIT. No permission is granted to copy, modify,
+publish, distribute, sublicense or sell them, for commercial or non-commercial
+purposes, with two exceptions:
+
+  1. They may be reproduced as part of the Google Play listing for Countdowns
+     published by the copyright holder.
+
+  2. A copy of this repository may be built locally, which regenerates the
+     screenshots from the photograph so that they can be inspected.
+
+For any other use, please ask first.

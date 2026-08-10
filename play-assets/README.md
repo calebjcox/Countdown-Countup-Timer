@@ -51,18 +51,33 @@ the shipping code at the exact sizes above.
 
 Two consequences worth knowing:
 
-- **No status bar or navigation bar.** Play does not require them.
+- **The status bar is drawn, not captured.** Robolectric has no system UI, so the clock,
+  signal, wifi and battery across the top are painted from primitives. On the app screens
+  this is closer to the truth than leaving it out: those layouts set
+  `fitsSystemWindows="true"`, so on a device the content really is inset below a status
+  bar, and the capture insets it the same way. The clock reads the same instant the
+  widgets were rendered from, so it agrees with the countdown values beside it.
 - **The home-screen shots are composites.** The widgets are the real `RemoteViews` the
   app ships, inflated by the framework at true cell sizes and showing all three of
-  `WidgetRenderer`'s detail levels. The wallpaper behind them is generated in code —
-  there is no launcher to photograph. Nothing else in the frame is invented: no fake
-  status bar, no other apps' icons.
+  `WidgetRenderer`'s detail levels. Behind them is a photograph, cropped per slot — there
+  is no launcher to photograph, so the wallpaper is the one part of the frame that did
+  not come out of this app. The dark-theme shots dim it, which is what Android 12+ does
+  to a wallpaper in dark theme, and is also what keeps the light widget text legible.
+  There are no other apps' icons and no fake dock.
 
 The icon bakes in fixed colours, which the shipped icon does not have.
 `ic_launcher.xml` paints itself from `@android:color/system_accent1_100` and `_700`,
 Material You framework resources that follow the user's wallpaper, so on a device the
 icon has no single colour. What these assets use is the platform's baseline palette —
 what a device with an unremarkable wallpaper shows.
+
+## The home-screen shots are not MIT licensed
+
+The wallpaper is an original photograph, and it is reserved rather than given away with
+the rest of the repository. That means `0[5-8]-widgets-*.png` in each directory — twelve
+files — are covered by [IMAGE-LICENSE](../IMAGE-LICENSE), not by
+[LICENSE](../LICENSE). The other twenty-four screenshots contain no photograph and are
+MIT like everything else.
 
 ## Known limitation: the tablet shots
 

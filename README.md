@@ -306,3 +306,12 @@ different one.
 Timers and widgets are separate: one timer can drive several widgets, deleting a
 widget leaves the timer alone, and deleting a timer leaves its widgets asking for a
 new one rather than vanishing.
+
+## License
+
+MIT — see [LICENSE](LICENSE) — with one carve-out.
+
+The wallpaper behind the home-screen screenshots is a photograph, and it is **not**
+covered by that grant. Neither are the twelve screenshots composited on top of it. Those
+are all rights reserved; see [IMAGE-LICENSE](IMAGE-LICENSE). Everything else, code and
+the other screenshots included, is MIT.

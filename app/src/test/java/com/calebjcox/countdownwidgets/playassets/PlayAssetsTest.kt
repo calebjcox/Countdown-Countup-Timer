@@ -45,6 +45,13 @@ class PlayAssetsTest {
 
     private val zone: ZoneId = ZoneId.systemDefault()
 
+    /**
+     * Read once per capture, and shared by the seed targets, the widgets and the status
+     * bar clock — so the time in the corner agrees with the countdown values beside it
+     * instead of contradicting them.
+     */
+    private var nowMillis: Long = 0L
+
     private val context: Context get() = RuntimeEnvironment.getApplication()
 
     @Before
@@ -87,7 +94,7 @@ class PlayAssetsTest {
                         (it as com.google.android.material.appbar.MaterialToolbar).title
                     },
                 )
-                write(spec, dark, 1, "timer-list", Capture.activity(activity, spec))
+                write(spec, dark, 1, "timer-list", Capture.activity(activity, spec, dark, nowMillis))
             }
         }
     }
@@ -118,7 +125,7 @@ class PlayAssetsTest {
                 // leaving it in would be the less faithful choice.
                 scroll.isVerticalScrollBarEnabled = false
 
-                write(spec, dark, 2, "timer-editor", Capture.activity(activity, spec))
+                write(spec, dark, 2, "timer-editor", Capture.activity(activity, spec, dark, nowMillis))
 
                 val preview = activity.findViewById<TextView>(R.id.preview_value)
                 assertTrue("the editor's live preview is empty", preview.text.isNotEmpty())
@@ -126,7 +133,7 @@ class PlayAssetsTest {
                 scroll.scrollTo(0, scroll.getChildAt(0).height - scroll.height)
                 write(
                     spec, dark, 0, "timer-editor-appearance",
-                    Capture.activity(activity, spec), extra = true,
+                    Capture.activity(activity, spec, dark, nowMillis), extra = true,
                 )
             }
         }
@@ -139,11 +146,11 @@ class PlayAssetsTest {
             val timers = onHomeScreen()
             write(
                 spec, dark, 3, "widgets-panel",
-                HomeScreen.compose(context, spec, dark, showBackground = true, timers = timers),
+                HomeScreen.compose(context, spec, dark, true, timers, nowMillis),
             )
             write(
                 spec, dark, 4, "widgets-wallpaper",
-                HomeScreen.compose(context, spec, dark, showBackground = false, timers = timers),
+                HomeScreen.compose(context, spec, dark, false, timers, nowMillis),
             )
         }
     }
@@ -158,14 +165,17 @@ class PlayAssetsTest {
 
             Robolectric.buildActivity(WidgetConfigActivity::class.java, intent).use { controller ->
                 val activity = controller.setup().get()
-                write(spec, dark, 0, "widget-picker", Capture.activity(activity, spec), extra = true)
+                write(spec, dark, 0, "widget-picker", Capture.activity(activity, spec, dark, nowMillis), extra = true)
             }
         }
     }
 
     // ------------------------------------------------------------------- helpers
 
-    private fun seed(): List<Timer> = SeedTimers.install(context, zone, System.currentTimeMillis())
+    private fun seed(): List<Timer> {
+        nowMillis = System.currentTimeMillis()
+        return SeedTimers.install(context, zone, nowMillis)
+    }
 
     /**
      * The three timers the home-screen shots show, largest widget first, so the biggest

@@ -4,17 +4,17 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.RadialGradient
-import android.graphics.Shader
+import android.graphics.PorterDuff
 import android.util.SizeF
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import com.calebjcox.countdownwidgets.data.Timer
 import com.calebjcox.countdownwidgets.widget.WidgetRenderer
+import java.awt.RenderingHints
+import java.awt.image.BufferedImage
 import java.time.ZoneId
+import javax.imageio.ImageIO
 import org.junit.Assert.assertTrue
 
 /**
@@ -25,84 +25,97 @@ import org.junit.Assert.assertTrue
  * are the `RemoteViews` `WidgetRenderer` ships, inflated and drawn by the framework
  * exactly as a launcher would, at the pixel sizes a launcher would give them.
  *
- * Deliberately no fake status bar, no fake dock and no other apps' icons: the parts of
- * the picture that are not this app's own output are a wallpaper and nothing else.
+ * Deliberately no fake dock and no other apps' icons: apart from the status bar and the
+ * wallpaper, everything in the frame is this app's own output.
  */
 object HomeScreen {
 
     /**
-     * A wallpaper. Deterministic, and drawn rather than committed, so no binary asset
-     * enters the repository.
+     * The photograph the widgets sit on.
      *
-     * The brightness is load-bearing. `WidgetPalette` asks the wallpaper whether dark
-     * text reads against it; off-device nothing answers, so `resolveTextTone` falls
-     * back to the night qualifier — light mode picks dark text, dark mode picks light.
-     * Pairing a pale wallpaper with light mode and a deep one with dark mode is what
-     * makes that fallback the right answer instead of an accident.
+     * **Not MIT licensed**, unlike almost everything else here: it and the screenshots
+     * composited on top of it are all rights reserved. See IMAGE-LICENSE before copying
+     * either anywhere.
+     *
+     * A test resource, so it stays on the unit-test classpath and never reaches the APK.
+     * Stored at 2560x3413 because that is the smallest 3:4 frame from which every crop
+     * below is a downsample rather than an upscale.
+     */
+    private const val PHOTO = "/wallpaper/kalalau-valley.jpg"
+
+    /**
+     * How far into the photo each crop starts, as a fraction of the slack left over
+     * after the target aspect is taken out. Portrait crops horizontally, landscape
+     * vertically; both were picked by looking at the result.
+     */
+    private const val PORTRAIT_CROP_X = 0.62f
+
+    /**
+     * 0.55 rather than centred: higher framings are almost all sky, which is bright but
+     * has nothing in it, and lower ones drop to luminance 0.44 where light theme's dark
+     * text starts to struggle. This keeps the ridge and the rainbow's landing in frame
+     * at a 0.70 mid-band — the same tone that reads well on the phone shots.
+     */
+    private const val LANDSCAPE_CROP_Y = 0.55f
+
+    /**
+     * How much black goes over the photo in dark theme.
+     *
+     * Necessary rather than stylistic: the sky the widgets sit on is luminance 0.9, and
+     * dark theme is exactly when `resolveTextTone` picks *light* text. Dimming is also
+     * what Android 12+ does to the wallpaper in dark theme, so the light and dark shots
+     * still read as one home screen rather than two unrelated ones.
+     */
+    private const val DARK_DIM = 0.72f
+
+    /**
+     * The wallpaper, cropped to fill [widthPx] x [heightPx] and dimmed in dark theme.
+     *
+     * Decoded and resampled through `ImageIO` rather than `BitmapFactory`: `javax.*` is
+     * not instrumented by Robolectric so it works untouched, it does not depend on
+     * Robolectric's JPEG decoder being present, and `Graphics2D` under bicubic hints
+     * resamples better than a bitmap scale would.
      */
     fun wallpaper(widthPx: Int, heightPx: Int, dark: Boolean): Bitmap {
-        val top = if (dark) 0xFF1A1F33.toInt() else 0xFFF3F1FC.toInt()
-        val bottom = if (dark) 0xFF070A12.toInt() else 0xFFC6D7F2.toInt()
-        val blooms = if (dark) {
-            listOf(0xAA2E4B8F.toInt(), 0x99512F7A.toInt(), 0x881F5F63.toInt())
-        } else {
-            listOf(0xAAB4C9F4.toInt(), 0x99E9CEE8.toInt(), 0x88C6E9DC.toInt())
+        val source = requireNotNull(HomeScreen::class.java.getResourceAsStream(PHOTO)) {
+            "$PHOTO is missing from the test resources"
+        }
+        val photo = source.use { requireNotNull(ImageIO.read(it)) { "$PHOTO would not decode" } }
+
+        // Crop to the target aspect first, so the scale that follows cannot distort.
+        val wanted = widthPx.toDouble() / heightPx
+        var cropW = photo.width
+        var cropH = (photo.width / wanted).toInt()
+        if (cropH > photo.height) {
+            cropH = photo.height
+            cropW = (photo.height * wanted).toInt()
+        }
+        val offsetX = ((photo.width - cropW) * PORTRAIT_CROP_X).toInt()
+        val offsetY = ((photo.height - cropH) * LANDSCAPE_CROP_Y).toInt()
+        val cropped = photo.getSubimage(offsetX, offsetY, cropW, cropH)
+
+        val scaled = BufferedImage(widthPx, heightPx, BufferedImage.TYPE_INT_RGB)
+        scaled.createGraphics().apply {
+            setRenderingHint(
+                RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BICUBIC,
+            )
+            setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+            drawImage(cropped, 0, 0, widthPx, heightPx, null)
+            dispose()
         }
 
-        val bitmap = Capture.bitmap(widthPx, heightPx, top)
-        val canvas = Canvas(bitmap)
+        val pixels = IntArray(widthPx * heightPx)
+        scaled.getRGB(0, 0, widthPx, heightPx, pixels, 0, widthPx)
+        val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        bitmap.setPixels(pixels, 0, widthPx, 0, 0, widthPx, heightPx)
 
-        canvas.drawRect(
-            0f,
-            0f,
-            widthPx.toFloat(),
-            heightPx.toFloat(),
-            Paint().apply {
-                shader = LinearGradient(
-                    0f, 0f, widthPx * 0.35f, heightPx.toFloat(),
-                    top, bottom, Shader.TileMode.CLAMP,
-                )
-            },
-        )
-
-        // Three soft blooms at fixed fractions of the frame, so every size gets the
-        // same picture rather than the same pixels.
-        val spots = listOf(
-            Triple(0.18f, 0.16f, 0.55f),
-            Triple(0.86f, 0.42f, 0.48f),
-            Triple(0.45f, 0.92f, 0.60f),
-        )
-        val longest = maxOf(widthPx, heightPx).toFloat()
-        for ((spot, colour) in spots.zip(blooms)) {
-            val (fx, fy, fr) = spot
-            val radius = longest * fr
-            canvas.drawCircle(
-                widthPx * fx,
-                heightPx * fy,
-                radius,
-                Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    shader = RadialGradient(
-                        widthPx * fx, heightPx * fy, radius,
-                        colour, Color.TRANSPARENT, Shader.TileMode.CLAMP,
-                    )
-                },
+        if (dark) {
+            Canvas(bitmap).drawColor(
+                Color.argb((DARK_DIM * 255).toInt(), 0, 0, 0),
+                PorterDuff.Mode.SRC_OVER,
             )
         }
-
-        // A vignette, which is what stops the result reading as a flat CSS gradient.
-        canvas.drawRect(
-            0f,
-            0f,
-            widthPx.toFloat(),
-            heightPx.toFloat(),
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = RadialGradient(
-                    widthPx / 2f, heightPx * 0.42f, longest * 0.72f,
-                    Color.TRANSPARENT, if (dark) 0x99000000.toInt() else 0x33203040,
-                    Shader.TileMode.CLAMP,
-                )
-            },
-        )
         return bitmap
     }
 
@@ -118,6 +131,7 @@ object HomeScreen {
         dark: Boolean,
         showBackground: Boolean,
         timers: List<Timer>,
+        nowMillis: Long,
     ): Bitmap {
         val density = context.resources.displayMetrics.density
         val bitmap = wallpaper(spec.widthPx, spec.heightPx, dark)
@@ -129,7 +143,7 @@ object HomeScreen {
         val places = if (spec.widthPx > spec.heightPx) {
             twoColumn(spec, sizes, gapPx)
         } else {
-            oneColumn(spec, sizes, gapPx)
+            oneColumn(spec, sizes, gapPx, StatusBar.heightPx(density))
         }
 
         for ((index, size) in sizes.withIndex()) {
@@ -139,17 +153,34 @@ object HomeScreen {
             val view = widgetView(context, timer, requested[index], index)
             Capture.draw(view, widthPx, heightPx, bitmap, atX = x, atY = y)
         }
+
+        StatusBar.draw(
+            canvas = Canvas(bitmap),
+            widthPx = spec.widthPx,
+            density = density,
+            dark = dark,
+            nowMillis = nowMillis,
+            zone = ZoneId.systemDefault(),
+            onWallpaper = true,
+        )
         return bitmap
     }
 
-    /** Portrait: a centred vertical stack, largest at the top. */
+    /**
+     * Portrait: a vertical stack under the status bar, largest at the top.
+     *
+     * High rather than centred, for two reasons that happen to agree. It is where
+     * widgets actually sit on a home screen, with the app icons below them. And it puts
+     * the text over the photograph's sky, which is luminance 0.9 — far kinder to the
+     * dark text light theme picks than the 0.70 of the frame's middle.
+     */
     private fun oneColumn(
         spec: DeviceSpec,
         sizes: List<Pair<Int, Int>>,
         gapPx: Int,
+        statusBarPx: Int,
     ): List<Pair<Int, Int>> {
-        val total = sizes.sumOf { it.second } + gapPx * (sizes.size - 1)
-        var y = ((spec.heightPx - total) / 2).coerceAtLeast(gapPx)
+        var y = statusBarPx + gapPx
         return sizes.map { (widthPx, heightPx) ->
             val place = (spec.widthPx - widthPx) / 2 to y
             y += heightPx + gapPx
