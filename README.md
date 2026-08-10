@@ -173,6 +173,36 @@ DataStore. Storage is `SharedPreferences` plus the platform's own `org.json`.
 in `android.jar` is a stub whose every method throws under unit tests. On a device
 it is the platform's implementation that runs, as it always was.
 
+## Store assets
+
+Everything the Play listing needs is generated from the app itself and committed under
+[`play-assets/`](play-assets/):
+
+```
+./gradlew :app:testPlayAssetsUnitTest -PplayAssets
+```
+
+Without `-PplayAssets` the generator is excluded from the build outright, so the normal
+test run and CI never touch it.
+
+It works by rendering the real layouts through Robolectric on the JVM, because there is
+no emulator to screenshot: neither CI runners nor a typical container expose `/dev/kvm`,
+and a software-rendered AVD is not usable for this. That is also why the generator is a
+unit test rather than a script — it needs the framework, the resource table and the
+Material theme, and a Robolectric test is the only place off-device that has all three.
+
+Two details it depends on, both easy to break by accident:
+
+- It runs on its own **`playAssets` build type**, which only exists while the flag is
+  set. Not `debug`, because `src/debug/res` renames the app to "Countdowns (debug)" and
+  `MainActivity` puts that straight in its app bar. Not `release` either, because the
+  release variant is gated on the upload key — and rendering marketing images should not
+  need the key that signs shipped builds.
+- Robolectric's default graphics mode draws nothing at all, silently. The generator asks
+  for `@GraphicsMode(NATIVE)` and fails any asset that comes out a single flat colour.
+
+`play-assets/README.md` says which file goes in which Play Console field.
+
 ## Installing without Android Studio
 
 Every push builds a debug APK in GitHub Actions. Open the run, download the
@@ -276,3 +306,12 @@ different one.
 Timers and widgets are separate: one timer can drive several widgets, deleting a
 widget leaves the timer alone, and deleting a timer leaves its widgets asking for a
 new one rather than vanishing.
+
+## License
+
+MIT — see [LICENSE](LICENSE) — with one carve-out.
+
+The wallpaper behind the home-screen screenshots is a photograph, and it is **not**
+covered by that grant. Neither are the twelve screenshots composited on top of it. Those
+are all rights reserved; see [IMAGE-LICENSE](IMAGE-LICENSE). Everything else, code and
+the other screenshots included, is MIT.

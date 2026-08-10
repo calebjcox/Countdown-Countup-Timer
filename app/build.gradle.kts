@@ -1,3 +1,4 @@
+import com.android.build.api.variant.HostTestBuilder
 import java.io.ByteArrayInputStream
 import java.security.KeyStore
 import java.util.Base64
@@ -250,6 +251,110 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric runs the real framework against the real resource table,
+            // and cannot see either without this. The Play Store asset generator
+            // under src/test/.../playassets depends on it entirely: it renders the
+            // shipping layouts, themes and drawables to PNG.
+            isIncludeAndroidResources = true
+        }
+    }
+}
+
+/**
+ * The android-all platform jar Robolectric runs the framework from, resolved through
+ * Gradle rather than downloaded by Robolectric's own Maven client at test runtime.
+ * The version is pinned in the catalogue like everything else, so a generator run
+ * years from now uses the same platform bytes as today's.
+ */
+val robolectricPlatform = configurations.create("robolectricPlatform") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+val stageRobolectricPlatform = tasks.register<Sync>("stageRobolectricPlatform") {
+    description = "Stages the android-all jar where Robolectric's offline mode looks for it."
+    from(robolectricPlatform)
+    into(layout.buildDirectory.dir("robolectric-platform"))
+}
+
+/**
+ * The asset generator is a set of unit tests, but it is not part of the test suite:
+ * it is slow, it writes a couple of dozen PNGs, and its output is judged by eye
+ * rather than asserted. So it is excluded unless `-PplayAssets` asks for it, and CI
+ * goes on running `testDebugUnitTest` without ever touching it.
+ */
+val generatingPlayAssets = providers.gradleProperty("playAssets").isPresent
+
+/**
+ * A build type that exists only while assets are being generated, because neither of
+ * the other two will do.
+ *
+ * Not `debug`: `src/debug/res` renames the app to "Countdowns (debug)", which
+ * `MainActivity` puts straight in its app bar, so every screenshot would carry the
+ * wrong name. Not `release` either: `preReleaseBuild` depends on
+ * `prepareUploadKeystore` above, and compiling the release variant is exactly what a
+ * release unit test does — so generating screenshots would demand the upload key. That
+ * guard is worth keeping intact rather than working around, and rendering marketing
+ * images has no business needing the key that signs shipped builds.
+ *
+ * Source sets are per build type and there is no `src/playAssets/`, so `app_name`
+ * resolves from `src/main`: "Countdowns". The generator asserts that.
+ */
+val playAssetsBuildType = "playAssets"
+
+android.buildTypes {
+    if (generatingPlayAssets) {
+        create(playAssetsBuildType) {
+            // Never installed anywhere — it exists to be rendered, not to run — but a
+            // variant with no signing config at all fails to assemble.
+            isDebuggable = true
+            signingConfig = android.signingConfigs.getByName("debug")
+        }
+    }
+}
+
+// AGP only builds unit tests for the debug variant, so the one variant that needs them
+// has to ask.
+androidComponents {
+    beforeVariants(selector().withBuildType(playAssetsBuildType)) { variant ->
+        variant.hostTests[HostTestBuilder.UNIT_TEST_TYPE]?.enable = true
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    // Rendered text includes formatted dates, so the locale and zone have to be
+    // fixed or the screenshots would differ between a laptop and CI. Mirrors what
+    // core/build.gradle.kts already does for the pure-JVM tests.
+    systemProperty("user.timezone", "America/Denver")
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+
+    if (!generatingPlayAssets) {
+        exclude("**/playassets/**")
+        return@configureEach
+    }
+
+    dependsOn(stageRobolectricPlatform)
+    systemProperty("robolectric.offline", "true")
+    systemProperty(
+        "robolectric.dependency.dir",
+        layout.buildDirectory.dir("robolectric-platform").get().asFile.path,
+    )
+    // Rendering a 2560x1440 screenshot means several 15 MB bitmaps live at once, on
+    // top of the framework Robolectric instruments into the same JVM.
+    maxHeapSize = "4g"
+
+    // Only the playAssets variant is told where to write, so a debug or release run
+    // cannot produce assets even by accident — it skips the package for want of this.
+    if (name == "testPlayAssetsUnitTest") {
+        systemProperty(
+            "playAssets.outputDir",
+            rootProject.layout.projectDirectory.dir("play-assets").asFile.path,
+        )
+    }
 }
 
 // preReleaseBuild is upstream of everything in the release variant, so bundleRelease,
@@ -272,4 +377,8 @@ dependencies {
     // tests. Only the backup format needs it, and only on the test classpath — the
     // app itself still uses the platform's org.json on a device.
     testImplementation(libs.json)
+    // Used only by the Play Store asset generator. Test-only, so none of this
+    // reaches the APK.
+    testImplementation(libs.robolectric)
+    robolectricPlatform(libs.android.all.instrumented)
 }
