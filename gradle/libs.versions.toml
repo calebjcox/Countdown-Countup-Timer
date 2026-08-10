@@ -16,6 +16,23 @@ junit = "4.13.2"
 # org.json is the one that runs.
 json = "20240303"
 
+# Test-only, and used by exactly one thing: the Play Store asset generator, which
+# renders the app's real layouts to PNG on the JVM. There is no emulator anywhere in
+# this project's toolchain — CI runners and this container have no KVM — so this is
+# the only way anything can be captured at all.
+robolectric = "4.16.1"
+# The platform jar Robolectric runs the framework from. Declared explicitly, and
+# paired with robolectric.offline in app/build.gradle.kts, so the generator resolves
+# it through Gradle like any other dependency instead of Robolectric downloading it
+# into ~/.m2 at test runtime, outside this file's promise.
+#
+# API 36 rather than 37: this is the newest platform the last *stable* Robolectric
+# ships, the generator pins it with @Config(sdk = [36]), and every API the app uses
+# landed in 31. Rendering the store assets one API below targetSdk changes nothing
+# about them. 4.17-beta-2 plus android-all 17-robolectric-15733970-i7 is the switch
+# if that ever stops being true.
+androidAll = "16-robolectric-13921718-i7"
+
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
@@ -24,6 +41,8 @@ material = { module = "com.google.android.material:material", version.ref = "mat
 
 junit = { module = "junit:junit", version.ref = "junit" }
 json = { module = "org.json:json", version.ref = "json" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+android-all-instrumented = { module = "org.robolectric:android-all-instrumented", version.ref = "androidAll" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

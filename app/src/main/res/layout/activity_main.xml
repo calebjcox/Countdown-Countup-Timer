@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
@@ -9,11 +10,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+        <!--
+          app:title, not android:title. MaterialToolbar inherits appcompat's Toolbar,
+          whose styleable declares its own `title` attribute and does not read the
+          framework one at all — so android:title inflates without complaint and
+          leaves the app bar blank.
+        -->
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:title="@string/app_name" />
+            app:title="@string/app_name" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <FrameLayout
