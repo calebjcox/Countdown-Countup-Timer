@@ -28,11 +28,16 @@ data class DeviceSpec(
     /**
      * The widget sizes the home-screen shot lays out, in dp, largest first.
      *
-     * Chosen to straddle `WidgetRenderer`'s three breakpoints — 100x40, 150x70 and
-     * 200x110 dp — so one screenshot shows all three detail levels the launcher can
-     * ask for: everything, value with name, and value alone. A launcher picks the
-     * largest variant that fits inside the cell, so the third size is deliberately
-     * shorter than 70dp and the second shorter than 110dp.
+     * A launcher picks the largest of `WidgetRenderer`'s variants that fits inside the
+     * cell — 100x40 for the value alone, 150x70 to add the name, 200x110 for the footer
+     * too. Only the first size here clears 200x110, so one screenshot shows the full
+     * widget above two more compact ones.
+     *
+     * Every size deliberately clears 150x70, so all three carry a name. The smallest
+     * variant renders a bare number, which is honest but reads as a mistake sitting
+     * under two labelled widgets — a stray figure with nothing to say what it counts.
+     * See issue #11 for making the name survive that size in the app itself; until it
+     * does, the shot that sells the widget should not lead with its weakest case.
      */
     val widgetSizesDp: List<Pair<Int, Int>>,
 ) {
@@ -55,7 +60,7 @@ data class DeviceSpec(
             heightPx = 1920,
             layout = "en-rUS-sw360dp-w360dp-h640dp-port",
             density = "xxhdpi",
-            widgetSizesDp = listOf(344 to 152, 344 to 88, 152 to 64),
+            widgetSizesDp = listOf(344 to 152, 344 to 88, 168 to 80),
         )
 
         /** 1920x1080, 16:9 landscape. sw540dp at xhdpi is the 7-inch class. */
@@ -65,7 +70,7 @@ data class DeviceSpec(
             heightPx = 1080,
             layout = "en-rUS-sw540dp-w960dp-h540dp-land",
             density = "xhdpi",
-            widgetSizesDp = listOf(420 to 168, 420 to 100, 190 to 68),
+            widgetSizesDp = listOf(420 to 168, 420 to 100, 200 to 84),
         )
 
         /** 2560x1440, 16:9 landscape. sw720dp at xhdpi is the 10-inch class. */
@@ -75,7 +80,7 @@ data class DeviceSpec(
             heightPx = 1440,
             layout = "en-rUS-sw720dp-w1280dp-h720dp-land",
             density = "xhdpi",
-            widgetSizesDp = listOf(520 to 184, 520 to 108, 230 to 68),
+            widgetSizesDp = listOf(520 to 184, 520 to 108, 230 to 88),
         )
 
         val ALL = listOf(PHONE, SEVEN_INCH, TEN_INCH)
