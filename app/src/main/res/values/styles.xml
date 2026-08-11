@@ -14,7 +14,7 @@
         <item name="android:ellipsize">end</item>
         <item name="android:gravity">center</item>
         <item name="android:maxLines">1</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:textSize">@dimen/widget_name_text</item>
     </style>
 
     <!--
@@ -42,7 +42,7 @@
         <item name="android:ellipsize">end</item>
         <item name="android:gravity">center</item>
         <item name="android:maxLines">1</item>
-        <item name="android:textSize">11sp</item>
+        <item name="android:textSize">@dimen/widget_footer_text</item>
     </style>
 
     <!--
