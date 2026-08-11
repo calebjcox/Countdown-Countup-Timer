@@ -152,16 +152,20 @@ object WidgetRenderer {
      * How much of what is left after padding and labels the value may occupy. The rest
      * is the border that keeps the rows reading as one tile.
      *
-     * Lower than it looks like it should be, and the reason is the one case this whole
-     * approach cannot measure: how wide the value's text turns out. Auto-sizing shrinks
+     * Lower than it looks like it should be, and the reason is the one thing this
+     * approach cannot measure: how tall the value's text turns out. Auto-sizing shrinks
      * it to fit the cell's *width*, which nothing here knows — a band declares a
-     * minimum width, not the real one — so on a narrow cell the text can end up well
-     * short of its box and the difference comes back as a gap between the rows. Holding
-     * the box under three quarters of the free height keeps that gap smaller than the
-     * border even when the text shrinks hard. `WidgetVariantSizeTest` measures the two
-     * against each other at real cell sizes.
+     * minimum width, not the real one — so the text usually ends up shorter than its
+     * box, and that difference is what separates the labels from it. The labels
+     * themselves are `wrap_content` and already sit flush against the box, so this
+     * fraction, not the padding, is the dial for how close the three rows read.
+     *
+     * It is a compromise in both directions. Too high and the leftover reappears as the
+     * gap this layout exists to remove; too low and the box starts clipping the value
+     * before its width does, shrinking the number on cells that had room for it.
+     * `WidgetVariantSizeTest` measures gap against border at real cell sizes.
      */
-    private const val VALUE_SHARE = 0.72f
+    private const val VALUE_SHARE = 0.64f
 
     fun build(
         context: Context,
