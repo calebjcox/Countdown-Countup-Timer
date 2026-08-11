@@ -16,7 +16,7 @@
       two sizes most people actually drop — captioned at 10sp with nothing to be done
       about it. Now WidgetRenderer measures: the floor is the smallest a label may be
       drawn at all, the ceiling is where growing one stops helping, and everything
-      between is decided by the cell in front of it. 13sp is the floor because a 2x1 has
+      between is decided by the cell in front of it. 12sp is the floor because a 2x1 has
       no surplus to grow into and is still the size a label has to be legible at.
 
       They are dimens rather than literals because both sides need the same numbers:
@@ -26,7 +26,7 @@
     -->
     <dimen name="widget_padding">10dp</dimen>
     <dimen name="widget_padding_compact">6dp</dimen>
-    <dimen name="widget_label_text_min">13sp</dimen>
+    <dimen name="widget_label_text_min">12sp</dimen>
     <dimen name="widget_label_text_max">17sp</dimen>
 
     <!--

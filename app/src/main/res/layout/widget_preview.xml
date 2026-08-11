@@ -37,7 +37,7 @@
         android:maxLines="1"
         android:text="@string/preview_value"
         android:textColor="@color/widget_text_primary"
-        android:textSize="21sp"
+        android:textSize="22sp"
         android:textStyle="bold" />
 
     <TextView

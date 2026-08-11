@@ -52,7 +52,7 @@ object WidgetRenderer {
      *
      * Only the padding now. Each band used to carry a label size as well, which made
      * the band the answer to a question it cannot see — how large a caption has to be
-     * to read — and pinned a 2x1 and a 3x1 at 10sp. [metricsFor] measures that instead.
+     * to read — and pinned a 2x1 and a 3x1 at 10sp. [metricsFor] measures it instead.
      */
     private enum class Density(@DimenRes val padding: Int) {
         COMPACT(padding = R.dimen.widget_padding_compact),
@@ -74,9 +74,9 @@ object WidgetRenderer {
      * than reasoned about as a ladder. The fit table lives in `WidgetVariantSizeTest`,
      * which asserts it against the platform's own selection code.
      *
-     * The heights are derived, not guessed. A label costs its line height — about 17dp
-     * at the 13sp floor — the root costs twice its padding, and whatever remains is the
-     * box `WidgetValue`'s uniform auto-sizing searches in. 68dp of cell leaves 22dp for
+     * The heights are derived, not guessed. A label costs its line height — about 16dp
+     * at the 12sp floor — the root costs twice its padding, and whatever remains is the
+     * box `WidgetValue`'s uniform auto-sizing searches in. 68dp of cell leaves 24dp for
      * the value once a name and a footer are paid for: not much, but a one-row cell
      * that says what it is counting is worth more than a larger number that does not.
      * The previous set asked for 110dp before showing the footer, which is more than a
