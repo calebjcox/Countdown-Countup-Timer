@@ -28,7 +28,7 @@
         android:maxLines="1"
         android:text="@string/preview_name"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="@dimen/widget_name_text_compact" />
+        android:textSize="@dimen/widget_label_text_min" />
 
     <TextView
         android:layout_width="match_parent"
@@ -37,7 +37,7 @@
         android:maxLines="1"
         android:text="@string/preview_value"
         android:textColor="@color/widget_text_primary"
-        android:textSize="24sp"
+        android:textSize="21sp"
         android:textStyle="bold" />
 
     <TextView
@@ -47,5 +47,5 @@
         android:maxLines="1"
         android:text="@string/preview_footer"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="@dimen/widget_footer_text_compact" />
+        android:textSize="@dimen/widget_label_text_min" />
 </LinearLayout>

@@ -49,22 +49,14 @@ object WidgetRenderer {
      * How tightly the rows are packed. A separate axis from [Detail] because the two
      * answer different questions: whether there is room for a row at all, and how much
      * of the room left over should go to breathing space rather than to the value.
+     *
+     * Only the padding now. Each band used to carry a label size as well, which made
+     * the band the answer to a question it cannot see — how large a caption has to be
+     * to read — and pinned a 2x1 and a 3x1 at 10sp. [metricsFor] measures that instead.
      */
-    private enum class Density(
-        @DimenRes val padding: Int,
-        @DimenRes val nameText: Int,
-        @DimenRes val footerText: Int,
-    ) {
-        COMPACT(
-            padding = R.dimen.widget_padding_compact,
-            nameText = R.dimen.widget_name_text_compact,
-            footerText = R.dimen.widget_footer_text_compact,
-        ),
-        ROOMY(
-            padding = R.dimen.widget_padding,
-            nameText = R.dimen.widget_name_text,
-            footerText = R.dimen.widget_footer_text,
-        ),
+    private enum class Density(@DimenRes val padding: Int) {
+        COMPACT(padding = R.dimen.widget_padding_compact),
+        ROOMY(padding = R.dimen.widget_padding),
     }
 
     private data class Variant(val detail: Detail, val density: Density)
@@ -82,19 +74,19 @@ object WidgetRenderer {
      * than reasoned about as a ladder. The fit table lives in `WidgetVariantSizeTest`,
      * which asserts it against the platform's own selection code.
      *
-     * The heights are derived, not guessed. A label costs its line height — about 12dp
-     * at 10sp, 15dp at 12sp — the root costs twice its padding, and whatever remains is
-     * the box `WidgetValue`'s uniform auto-sizing searches in. 68dp of cell leaves 32dp
-     * for the value once a compact name and footer are paid for, which lands the value
-     * near 26sp: the smallest size at which three rows still read as a widget rather
-     * than as a squeeze. The previous set asked for 110dp before showing the footer,
-     * which is more than a one-row cell has ever offered, so the target date was
-     * unreachable at every 1-row size — see issue #11 and the sizes in `DeviceSpec`.
+     * The heights are derived, not guessed. A label costs its line height — about 17dp
+     * at the 13sp floor — the root costs twice its padding, and whatever remains is the
+     * box `WidgetValue`'s uniform auto-sizing searches in. 68dp of cell leaves 22dp for
+     * the value once a name and a footer are paid for: not much, but a one-row cell
+     * that says what it is counting is worth more than a larger number that does not.
+     * The previous set asked for 110dp before showing the footer, which is more than a
+     * one-row cell has ever offered, so the target date was unreachable at every 1-row
+     * size — see issue #11 and the sizes in `DeviceSpec`.
      *
      * The widths track the provider's own `minWidth` of 110dp rather than a guess at
      * how wide two cells are, so width cannot demote a legally-sized widget. `ROOMY` is
      * the exception: a one-cell-wide column has the height for three rows but not the
-     * width for a 12sp date, so it stays compact and keeps the room for the text.
+     * width to spend on padding, so it stays compact and keeps the room for the text.
      *
      * Two entries carry the same variant at different heights. That is not redundancy:
      * each one also sizes the rows to the cell it is for — see [metricsFor] — so the
@@ -153,10 +145,9 @@ object WidgetRenderer {
         val (detail, density) = variant
         val views = RemoteViews(context.packageName, layoutFor(timer))
 
-        // The layouts already declare the roomy metrics, so only the compact band has
-        // anything to change here — but both are applied explicitly rather than one of
-        // them inheriting from the XML, because a variant whose spacing comes from
-        // somewhere else is a variant that moves when that somewhere else does.
+        // Applied explicitly on every variant rather than left to the XML for the band
+        // that happens to match it, because a variant whose spacing comes from somewhere
+        // else is a variant that moves when that somewhere else does.
         val resources = context.resources
         val padding = resources.getDimensionPixelSize(density.padding)
         views.setViewPadding(R.id.widget_root, padding, padding, padding, padding)
@@ -188,7 +179,7 @@ object WidgetRenderer {
         // switches off the uniform auto-sizing their bounded slot exists to serve. What
         // they get instead is the slot itself.
         views.setTextViewTextSize(R.id.widget_name, TypedValue.COMPLEX_UNIT_PX, metrics.labelText)
-        views.setTextViewTextSize(R.id.widget_footer, TypedValue.COMPLEX_UNIT_PX, metrics.footerText)
+        views.setTextViewTextSize(R.id.widget_footer, TypedValue.COMPLEX_UNIT_PX, metrics.labelText)
         setValueHeight(views, metrics.valueHeight)
 
         // Resolved rather than left to the layout: on the wallpaper the choice
@@ -239,12 +230,8 @@ object WidgetRenderer {
     /** The three rows' text, with null for a row this variant is not drawing. */
     private data class Text(val value: String, val name: String?, val footer: String?)
 
-    /** What [render] has to set: the value's box, and the size of each label. */
-    private data class Metrics(
-        val valueHeight: Int,
-        val labelText: Float,
-        val footerText: Float,
-    )
+    /** What [render] has to set: the value's box, and the size both labels share. */
+    private data class Metrics(val valueHeight: Int, val labelText: Float)
 
     /**
      * How large to draw each row on a cell of this size.
@@ -264,14 +251,14 @@ object WidgetRenderer {
      * because it must — a compact three-row cell has less room than the text would take,
      * and there the value is what gives.
      *
-     * **The labels then grow into what is left.** Their band size is a floor, not a
-     * fixed size: 10sp is what fits a one-row cell with a number in it, and it was being
-     * drawn on cells with 40dp going spare, where a name is technically present and
-     * practically unreadable. They grow a point at a time while three things hold — the
-     * cell has the height, the label still fits the width without ellipsizing, and it
-     * stays under [LABEL_SHARE] of the value. The last one is what keeps the number the
-     * thing you read first. Growth is checked against the value's *wanted* line, so a
-     * label can never take a point off the number to spend on itself.
+     * **The labels then grow into what is left.** `widget_label_text_min` is a floor,
+     * not a size: it is the smallest a caption may be drawn and still be worth drawing,
+     * and it is all a 2x1 or a 3x1 has room for. Where there is more, they grow a point
+     * at a time while three things hold — the cell has the height, the label still fits
+     * the width without ellipsizing, and it stays under [LABEL_SHARE] of the value. The
+     * last one is what keeps the number the thing you read first. Growth is checked
+     * against the value's *wanted* line, so a label can never take a point off the
+     * number to spend on itself.
      *
      * Every figure here is measured rather than assumed, so all of it follows the user's
      * font scale.
@@ -300,33 +287,35 @@ object WidgetRenderer {
         }
         val wantedLine = lineHeightPx(wanted, bold = true)
 
-        val nameBase = resources.getDimension(density.nameText)
-        val footerBase = resources.getDimension(density.footerText)
-        val ceiling = minOf(resources.getDimension(R.dimen.widget_label_text_max), wanted * LABEL_SHARE)
+        val floor = resources.getDimension(R.dimen.widget_label_text_min)
+        val ceiling = maxOf(
+            floor,
+            minOf(resources.getDimension(R.dimen.widget_label_text_max), wanted * LABEL_SHARE),
+        )
         val step = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP,
             1f,
             resources.displayMetrics,
         )
 
-        fun labels(boost: Float): Int =
-            (text.name?.let { lineHeightPx(nameBase + boost) } ?: 0) +
-                (text.footer?.let { lineHeightPx(footerBase + boost) } ?: 0)
+        fun labels(size: Float): Int =
+            (text.name?.let { lineHeightPx(size) } ?: 0) +
+                (text.footer?.let { lineHeightPx(size) } ?: 0)
 
-        fun fits(boost: Float): Boolean {
-            if (2 * padding + wantedLine + labels(boost) > cellHeight) return false
+        fun fits(size: Float): Boolean {
+            if (2 * padding + wantedLine + labels(size) > cellHeight) return false
             if (widthPx == null) return false
-            val name = text.name?.let { measureTextPx(it, nameBase + boost) } ?: 0f
-            val footer = text.footer?.let { measureTextPx(it, footerBase + boost) } ?: 0f
+            val name = text.name?.let { measureTextPx(it, size) } ?: 0f
+            val footer = text.footer?.let { measureTextPx(it, size) } ?: 0f
             return maxOf(name, footer) <= widthPx
         }
 
-        var boost = 0f
-        while (nameBase + boost + step <= ceiling && fits(boost + step)) boost += step
+        var label = floor
+        while (label + step <= ceiling && fits(label + step)) label += step
 
-        val box = (cellHeight - 2 * padding - labels(boost))
+        val box = (cellHeight - 2 * padding - labels(label))
             .coerceIn(lineHeightPx(smallest, bold = true), wantedLine)
-        return Metrics(box, nameBase + boost, footerBase + boost)
+        return Metrics(box, label)
     }
 
     /**

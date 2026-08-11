@@ -4,32 +4,29 @@
     <dimen name="widget_corner_radius">@android:dimen/system_app_widget_background_radius</dimen>
 
     <!--
-      Two sets of widget metrics, one per density band in WidgetRenderer. The roomy set
-      is what the layouts declare, so a widget rendered straight from XML — the
-      initialLayout, or the picker's own inflation — looks like the large variant;
-      WidgetRenderer overrides both sets explicitly on every variant it builds.
+      How much room the rows get: padding per density band in WidgetRenderer, and the
+      range a label is drawn in.
 
-      They are dimens rather than literals in either place because both sides need the
-      same numbers: styles.xml to declare the default, WidgetRenderer to switch between
-      them. A number written twice is a number that ends up meaning two things.
+      The compact padding is what makes three rows fit a one-row cell: at 6dp a 68dp
+      cell has 56dp inside it, which is the whole reason the "until" line is reachable
+      at 2x1.
 
-      The compact set is what makes three rows fit a one-row cell. At 6dp of padding a
-      68dp cell has 56dp inside it, and two 10sp labels leave 32dp for the value — which
-      is the whole reason the "until" line is reachable at 2x1 now.
+      The label range used to be four numbers, a name size and a footer size per band,
+      and each was both a floor and a ceiling. That is what left a 2x1 and a 3x1 — the
+      two sizes most people actually drop — captioned at 10sp with nothing to be done
+      about it. Now WidgetRenderer measures: the floor is the smallest a label may be
+      drawn at all, the ceiling is where growing one stops helping, and everything
+      between is decided by the cell in front of it. 13sp is the floor because a 2x1 has
+      no surplus to grow into and is still the size a label has to be legible at.
+
+      They are dimens rather than literals because both sides need the same numbers:
+      styles.xml and widget_preview.xml to declare what a raw inflation shows,
+      WidgetRenderer to measure against. A number written twice is a number that ends
+      up meaning two things.
     -->
     <dimen name="widget_padding">10dp</dimen>
     <dimen name="widget_padding_compact">6dp</dimen>
-    <dimen name="widget_name_text">12sp</dimen>
-    <dimen name="widget_name_text_compact">10sp</dimen>
-    <dimen name="widget_footer_text">11sp</dimen>
-    <dimen name="widget_footer_text_compact">10sp</dimen>
-
-    <!--
-      A floor, not a fixed size. The four above are what fits a cell with a number
-      filling it; where the number does not need the room, WidgetRenderer grows the
-      labels a point at a time towards this, which is roughly where a caption stops
-      getting easier to read and starts competing with what it captions.
-    -->
+    <dimen name="widget_label_text_min">13sp</dimen>
     <dimen name="widget_label_text_max">17sp</dimen>
 
     <!--
