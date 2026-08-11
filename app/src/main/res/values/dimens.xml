@@ -4,25 +4,16 @@
     <dimen name="widget_corner_radius">@android:dimen/system_app_widget_background_radius</dimen>
 
     <!--
-      Two sets of widget metrics, one per density band in WidgetRenderer. The roomy set
-      is what the layouts declare, so a widget rendered straight from XML — the
-      initialLayout, or the picker's own inflation — looks like the large variant;
-      WidgetRenderer overrides both sets explicitly on every variant it builds.
-
-      They are dimens rather than literals in either place because both sides need the
-      same numbers: styles.xml to declare the default, WidgetRenderer to switch between
-      them. A number written twice is a number that ends up meaning two things.
-
-      The compact set is what makes three rows fit a one-row cell. At 6dp of padding a
-      68dp cell has 56dp inside it, and two 10sp labels leave 32dp for the value — which
-      is the whole reason the "until" line is reachable at 2x1 now.
+      Starting points, not the sizes a widget actually renders at. WidgetRenderer scales
+      padding and both label sizes to the cell it is building for and overrides all
+      three on every variant, because the right figure for a one-row cell and the right
+      figure for a four-row one are not the same figure. These are what the layouts show
+      before that happens: the initialLayout the launcher draws for the frame before the
+      first update, and the layouts as they render in a preview tool.
     -->
-    <dimen name="widget_padding">10dp</dimen>
-    <dimen name="widget_padding_compact">6dp</dimen>
+    <dimen name="widget_padding">8dp</dimen>
     <dimen name="widget_name_text">12sp</dimen>
-    <dimen name="widget_name_text_compact">10sp</dimen>
-    <dimen name="widget_footer_text">11sp</dimen>
-    <dimen name="widget_footer_text_compact">10sp</dimen>
+    <dimen name="widget_footer_text">12sp</dimen>
 
     <dimen name="screen_margin">16dp</dimen>
     <dimen name="section_spacing">20dp</dimen>

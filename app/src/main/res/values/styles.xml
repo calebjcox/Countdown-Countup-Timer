@@ -18,14 +18,22 @@
     </style>
 
     <!--
-      A fixed-height weighted slot rather than wrap_content, so uniform auto-sizing
-      has a bounded box to work in; tabular figures stop the text jittering as a
-      ticking clock rolls through digits of different widths.
+      A bounded box rather than wrap_content, because uniform auto-sizing searches for
+      a size that fits a box and needs one to be real. Deliberately *not* a weighted
+      slot any more: weight hands the value every spare pixel in the widget, and a
+      value that is width-limited — which most of them are, "2 years, 0 months, 9 days"
+      long before "3d" — then floats in the middle of a box far taller than its text.
+      That is where the old layout's spacing went wrong. The gaps between the rows came
+      out larger than the gaps to the widget's own edges, which reads as three separate
+      things rather than one tile. WidgetRenderer sets this height per size band, close
+      to what the text needs, so the leftover collects at the edges as a border instead.
+
+      Tabular figures stop the text jittering as a ticking clock rolls through digits
+      of different widths.
     -->
     <style name="WidgetValue">
         <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">0dp</item>
-        <item name="android:layout_weight">1</item>
+        <item name="android:layout_height">wrap_content</item>
         <item name="android:autoSizeMaxTextSize">44sp</item>
         <item name="android:autoSizeMinTextSize">11sp</item>
         <item name="android:autoSizeStepGranularity">1sp</item>

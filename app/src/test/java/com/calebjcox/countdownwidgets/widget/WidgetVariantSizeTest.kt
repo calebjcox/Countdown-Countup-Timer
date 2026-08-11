@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.SizeF
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.TextView
 import com.calebjcox.countdownwidgets.R
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.TimeField
@@ -13,16 +14,18 @@ import com.calebjcox.countdownwidgets.testing.VariantSelection
 import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /**
  * Pins which rows a given cell size renders.
  *
- * This is the test the widget did not have when `BREAKPOINTS` was calibrated against
+ * This is the test the widget did not have when the size ladder was calibrated against
  * the legacy `70n - 30` cell formula instead of against what launchers report. The
  * numbers looked like a sensible ladder and were wrong by a whole size class: a 2x1
  * cell — the app's own advertised default — fell short of the 150dp width the name
@@ -41,9 +44,14 @@ import org.robolectric.annotation.Config
  * lower SDK would do, but it would mean staging a second platform jar to save nothing.
  * Robolectric will not build a sandbox for 36 on a JDK older than 21, which is why
  * both workflows ask for Java 21.
+ *
+ * `@GraphicsMode(NATIVE)` is not decoration either. Robolectric's default is LEGACY,
+ * where text measures zero — the spacing assertions below would compare one zero
+ * against another and pass on any layout at all.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class WidgetVariantSizeTest {
 
     private val context: Context get() = RuntimeEnvironment.getApplication()
@@ -87,8 +95,8 @@ class WidgetVariantSizeTest {
         assertRows(344f, 152f, name = true, footer = true)
         assertRows(216f, 120f, name = true, footer = true)
         assertRows(140f, 210f, name = true, footer = true)
-        // One cell wide but tall: the height is there, the width for a roomy date is
-        // not, so it stays in the compact band rather than ellipsizing.
+        // One cell wide but tall. Every band asks for the same 110dp, so a column this
+        // narrow is judged on height alone and keeps all three rows.
         assertRows(110f, 120f, name = true, footer = true)
     }
 
@@ -108,6 +116,70 @@ class WidgetVariantSizeTest {
         assertRows(90f, 30f, name = false, footer = false)
     }
 
+    /**
+     * The complaint this layout was rebuilt to answer: the rows were further from each
+     * other than from the widget's own edges, which reads as three stacked things
+     * rather than one tile. So measure both and compare them.
+     *
+     * The name and the footer are `wrap_content`, so their boxes are their text and the
+     * distance from the first row's box to the top edge *is* the border. The value is
+     * not: it gets a box sized by `WidgetRenderer.metrics`, its text is centred inside,
+     * and the leftover shows up as half a gap above and half below. That leftover is
+     * the whole quantity at issue, and `layout.height` is the rendered text against
+     * which to measure it.
+     *
+     * Real cell sizes rather than exhaustive ones. How far the value's text shrinks
+     * depends on the cell's width and on the string, so this is evidence about the
+     * shapes people actually use, not a proof for every conceivable cell.
+     */
+    @Test
+    fun `rows sit closer to each other than to the widget edge`() {
+        for ((widthDp, heightDp) in listOf(
+            140f to 68f, 140f to 74f, 140f to 100f, 216f to 100f,
+            168f to 80f, 344f to 88f, 344f to 152f, 216f to 120f, 140f to 210f,
+        )) {
+            val view = laidOutAt(widthDp, heightDp)
+            val name = view.findViewById<View>(R.id.widget_name)
+            val value = view.findViewById<TextView>(R.id.widget_value)
+            val footer = view.findViewById<View>(R.id.widget_footer)
+
+            val border = minOf(name.top, view.height - footer.bottom)
+            // Half above the text and half below, so half is what lands between rows.
+            val betweenRows = (value.height - (value.layout?.height ?: 0)) / 2
+
+            assertTrue(
+                "at ${widthDp}x$heightDp the gap between rows is ${betweenRows}px but " +
+                    "the border is only ${border}px — the tile reads as separate rows",
+                betweenRows <= border,
+            )
+            assertTrue("no border at ${widthDp}x$heightDp", border > 0)
+        }
+    }
+
+    private fun Float.toPx(): Int =
+        (this * context.resources.displayMetrics.density).toInt()
+
+    /** Inflates the variant a cell of this size gets, then measures and lays it out. */
+    private fun laidOutAt(widthDp: Float, heightDp: Float): View {
+        val views = WidgetRenderer.build(
+            context = context,
+            appWidgetId = 1,
+            timer = timer,
+            nowMillis = nowMillis,
+            zone = ZoneId.of("America/Denver"),
+        )
+        val view = VariantSelection.forSize(views, context, SizeF(widthDp, heightDp))
+            .apply(context, FrameLayout(context))
+
+        val exactly = View.MeasureSpec.EXACTLY
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(widthDp.toPx(), exactly),
+            View.MeasureSpec.makeMeasureSpec(heightDp.toPx(), exactly),
+        )
+        view.layout(0, 0, widthDp.toPx(), heightDp.toPx())
+        return view
+    }
+
     private fun assertRows(widthDp: Float, heightDp: Float, name: Boolean, footer: Boolean) {
         val views = WidgetRenderer.build(
             context = context,
@@ -116,8 +188,7 @@ class WidgetVariantSizeTest {
             nowMillis = nowMillis,
             zone = ZoneId.of("America/Denver"),
         )
-        val size = SizeF(widthDp, heightDp)
-        val view = VariantSelection.forSize(views, context, size)
+        val view = VariantSelection.forSize(views, context, SizeF(widthDp, heightDp))
             .apply(context, FrameLayout(context))
 
         assertEquals(

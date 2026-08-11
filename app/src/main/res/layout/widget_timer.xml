@@ -7,7 +7,7 @@
   One layout serves every size: the launcher is handed a RemoteViews per size band
   built from this file — different rows hidden, and the padding and label sizes
   overridden per band — and picks whichever best fits the cell. The sizes declared
-  here are the roomy band's; see WidgetRenderer.BREAKPOINTS.
+  here are only starting points; see WidgetRenderer.BANDS.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
