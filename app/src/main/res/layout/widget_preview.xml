@@ -1,12 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Shown in the launcher's widget picker. Static sample content, never inflated at runtime. -->
+<!--
+  Shown in the launcher's widget picker. Static sample content, never inflated at
+  runtime.
+
+  Deliberately built to the *compact* metrics rather than the layouts' roomy defaults,
+  because the picker frames this at the advertised 2x1 and that is the band a 2x1 cell
+  resolves to. A preview drawn at any other density is a promise the dropped widget
+  does not keep — which is exactly what it used to be, showing three roomy rows at a
+  size that then rendered as a bare number.
+
+  A background even though timers default to showBackground = false: the picker draws
+  previews on its own surface, not on the wallpaper, so the transparent variant has
+  nothing to stand out against there.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="@dimen/widget_padding">
+    android:padding="@dimen/widget_padding_compact">
 
     <TextView
         android:layout_width="match_parent"
@@ -15,7 +28,7 @@
         android:maxLines="1"
         android:text="@string/preview_name"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="12sp" />
+        android:textSize="@dimen/widget_name_text_compact" />
 
     <TextView
         android:layout_width="match_parent"
@@ -34,5 +47,5 @@
         android:maxLines="1"
         android:text="@string/preview_footer"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="11sp" />
+        android:textSize="@dimen/widget_footer_text_compact" />
 </LinearLayout>

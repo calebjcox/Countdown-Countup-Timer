@@ -4,8 +4,10 @@
   pair, which is correct here because the text sits on a background this app
   controls. For the transparent variant see widget_timer_wallpaper.xml.
 
-  One layout serves every size: the launcher is handed three RemoteViews built
-  from this file with different rows hidden, and picks whichever fits the cell.
+  One layout serves every size: the launcher is handed a RemoteViews per size band
+  built from this file — different rows hidden, and the padding and label sizes
+  overridden per band — and picks whichever best fits the cell. The sizes declared
+  here are the roomy band's; see WidgetRenderer.BREAKPOINTS.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"

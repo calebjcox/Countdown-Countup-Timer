@@ -23,10 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Kept in step with build.yml, which needs 21 for the Robolectric test in the
+      # unit-test suite this workflow also runs. Two workflows on two JDKs is a way
+      # for a release to fail on something the build already proved.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - uses: android-actions/setup-android@v3
 

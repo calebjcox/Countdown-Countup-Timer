@@ -332,17 +332,22 @@ tasks.withType<Test>().configureEach {
     systemProperty("user.language", "en")
     systemProperty("user.country", "US")
 
-    if (!generatingPlayAssets) {
-        exclude("**/playassets/**")
-        return@configureEach
-    }
-
+    // Every test run, not just the generator's: WidgetVariantSizeTest is a Robolectric
+    // test in the ordinary suite. Staged through Gradle rather than left to
+    // Robolectric's own Maven client so the platform bytes are the pinned ones and a
+    // test run needs no network of its own.
     dependsOn(stageRobolectricPlatform)
     systemProperty("robolectric.offline", "true")
     systemProperty(
         "robolectric.dependency.dir",
         layout.buildDirectory.dir("robolectric-platform").get().asFile.path,
     )
+
+    if (!generatingPlayAssets) {
+        exclude("**/playassets/**")
+        return@configureEach
+    }
+
     // Rendering a 2560x1440 screenshot means several 15 MB bitmaps live at once, on
     // top of the framework Robolectric instruments into the same JVM.
     maxHeapSize = "4g"

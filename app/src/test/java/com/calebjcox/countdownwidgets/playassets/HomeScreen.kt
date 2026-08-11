@@ -10,12 +10,12 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import com.calebjcox.countdownwidgets.data.Timer
+import com.calebjcox.countdownwidgets.testing.VariantSelection
 import com.calebjcox.countdownwidgets.widget.WidgetRenderer
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.time.ZoneId
 import javax.imageio.ImageIO
-import org.junit.Assert.assertTrue
 
 /**
  * The home-screen shots: real widgets over a wallpaper drawn in code.
@@ -249,19 +249,10 @@ object HomeScreen {
     /**
      * Picks the variant a launcher would pick for a cell of this size.
      *
-     * `getRemoteViewsToApply(Context, SizeF)` is public on `RemoteViews` and has been
-     * since API 31, but it is not in the SDK's public surface, so it is reached by
-     * reflection. There is no hidden-API enforcement off-device. If it ever disappears
-     * the fallback is the plain `apply` path, which loses the detail level rather than
-     * the screenshot — so the caller asserts what it got.
+     * Shared with `WidgetVariantSizeTest`, which asserts the same selection against the
+     * breakpoint table — so the screenshots and the regression test cannot disagree
+     * about what a given cell renders.
      */
     private fun forSize(views: RemoteViews, context: Context, size: SizeF): RemoteViews =
-        runCatching {
-            RemoteViews::class.java
-                .getMethod("getRemoteViewsToApply", Context::class.java, SizeF::class.java)
-                .invoke(views, context, size) as RemoteViews
-        }.getOrElse {
-            assertTrue("could not select a RemoteViews variant for $size: $it", false)
-            views
-        }
+        VariantSelection.forSize(views, context, size)
 }
