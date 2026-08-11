@@ -161,7 +161,6 @@ object HomeScreen {
             dark = dark,
             nowMillis = nowMillis,
             zone = ZoneId.systemDefault(),
-            onWallpaper = true,
         )
         return bitmap
     }
@@ -240,6 +239,9 @@ object HomeScreen {
             timer = timer,
             nowMillis = System.currentTimeMillis(),
             zone = ZoneId.systemDefault(),
+            // What a launcher reports through AppWidgetManager's options, and the
+            // reason these widgets are spaced here as they are on a device.
+            cellWidthDp = requestedDp.width,
         )
         val view = forSize(remoteViews, context, requestedDp).apply(context, FrameLayout(context))
         Capture.repaintChronometers(view)

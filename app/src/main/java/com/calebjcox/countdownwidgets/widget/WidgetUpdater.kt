@@ -44,6 +44,7 @@ object WidgetUpdater {
                 timer = store.timerForWidget(appWidgetId),
                 nowMillis = now,
                 zone = zone,
+                cellWidthDp = cellWidthDp(manager, appWidgetId),
             )
             manager.updateAppWidget(appWidgetId, views)
         }
@@ -52,4 +53,22 @@ object WidgetUpdater {
         // re-armed from the freshest state rather than left where it was.
         TimerScheduler.reschedule(context)
     }
+
+    /**
+     * How wide the launcher is drawing this widget, in dp, or null if it has not said.
+     *
+     * The narrow end of the range rather than the wide one. The two bracket the same
+     * widget across orientations — portrait is the narrower — and the renderer spends
+     * the number on how large the value's text can be, where guessing narrow costs a
+     * point of text size and guessing wide costs the spacing the number was read for.
+     *
+     * Null is normal, not a failure: the bundle is empty until the launcher has
+     * measured the widget once. The first draw is sized from height alone and
+     * `onAppWidgetOptionsChanged` brings the real width moments later.
+     */
+    private fun cellWidthDp(manager: AppWidgetManager, appWidgetId: Int): Float? =
+        manager.getAppWidgetOptions(appWidgetId)
+            ?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+            ?.takeIf { it > 0 }
+            ?.toFloat()
 }

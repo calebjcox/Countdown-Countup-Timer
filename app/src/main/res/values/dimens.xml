@@ -24,6 +24,21 @@
     <dimen name="widget_footer_text">11sp</dimen>
     <dimen name="widget_footer_text_compact">10sp</dimen>
 
+    <!--
+      The value's box, and the range its auto-sizing searches inside it.
+
+      The two text sizes are read from both sides for the same reason as the metrics
+      above: styles.xml hands them to `autoSizeM(in|ax)TextSize`, and WidgetRenderer
+      turns them into the line heights that bound the box.
+
+      The height is only the default the layouts declare — every variant the renderer
+      builds sets its own, measured against the cell it is for. 56dp is what a 44sp
+      line needs, so the default is the largest box that can ever be useful.
+    -->
+    <dimen name="widget_value_height">56dp</dimen>
+    <dimen name="widget_value_text_min">11sp</dimen>
+    <dimen name="widget_value_text_max">44sp</dimen>
+
     <dimen name="screen_margin">16dp</dimen>
     <dimen name="section_spacing">20dp</dimen>
 </resources>
