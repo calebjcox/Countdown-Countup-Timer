@@ -21,7 +21,6 @@ import com.calebjcox.countdownwidgets.ui.WidgetConfigActivity
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import kotlin.math.roundToInt
 
 /**
  * Turns a timer into the `RemoteViews` the launcher draws.
@@ -36,9 +35,10 @@ import kotlin.math.roundToInt
  *
  * Size handling is declarative. Rather than reacting to resize callbacks, every
  * variant in [BREAKPOINTS] is handed to the platform at once and the launcher picks
- * whichever best fits the cell it was given. [cellWidthDp] is the one thing that
- * cannot be answered that way — see [valueHeightPx] for why the width, specifically,
- * has to be known rather than bracketed.
+ * whichever best fits the cell it was given. What that cannot answer is how large to
+ * draw the text *inside* a variant, because a breakpoint is only the smallest cell that
+ * selects it — see [metricsFor], and [build]'s `cellDp` for where the real one comes
+ * from.
  */
 object WidgetRenderer {
 
@@ -97,9 +97,9 @@ object WidgetRenderer {
      * width for a 12sp date, so it stays compact and keeps the room for the text.
      *
      * Two entries carry the same variant at different heights. That is not redundancy:
-     * each one also sizes the value's box to the cell it is for — see [valueHeightPx] —
-     * so the pair is what lets a tall one-row cell spend its extra height on a bigger
-     * number rather than on margin.
+     * each one also sizes the rows to the cell it is for — see [metricsFor] — so the
+     * pair is what lets a tall one-row cell spend its extra height on a bigger number
+     * rather than on margin.
      */
     private val BREAKPOINTS = listOf(
         SizeF(110f, 40f) to Variant(Detail.VALUE, Density.COMPACT),
@@ -110,10 +110,11 @@ object WidgetRenderer {
     )
 
     /**
-     * @param cellWidthDp how wide the launcher is actually drawing this widget, when
-     *   that is known — from `AppWidgetManager`'s options for a live widget, or from
-     *   the layout a renderer is compositing into. Null falls back to sizing the value
-     *   from height alone, which costs some of the spacing but nothing else.
+     * @param cellDp the content box the launcher is actually drawing this widget in,
+     *   when that is known — from `AppWidgetManager`'s options for a live widget, or
+     *   from the layout a renderer is compositing into. Null falls back to each
+     *   variant's own breakpoint, which is the smallest cell it can be handed and so
+     *   sizes everything for the tightest case it will ever face.
      */
     fun build(
         context: Context,
@@ -121,7 +122,7 @@ object WidgetRenderer {
         timer: Timer?,
         nowMillis: Long,
         zone: ZoneId,
-        cellWidthDp: Float? = null,
+        cellDp: SizeF? = null,
     ): RemoteViews {
         if (timer == null) return unconfigured(context, appWidgetId)
 
@@ -133,7 +134,7 @@ object WidgetRenderer {
             BREAKPOINTS.associate { (size, variant) ->
                 size to render(
                     context, appWidgetId, timer, display,
-                    size, cellWidthDp, variant, elapsedRealtime,
+                    size, cellDp, variant, elapsedRealtime,
                 )
             },
         )
@@ -145,7 +146,7 @@ object WidgetRenderer {
         timer: Timer,
         display: Display,
         size: SizeF,
-        cellWidthDp: Float?,
+        cellDp: SizeF?,
         variant: Variant,
         elapsedRealtime: Long,
     ): RemoteViews {
@@ -156,49 +157,39 @@ object WidgetRenderer {
         // anything to change here — but both are applied explicitly rather than one of
         // them inheriting from the XML, because a variant whose spacing comes from
         // somewhere else is a variant that moves when that somewhere else does.
-        //
-        // Pixels rather than sp for the text, because the resource is already declared
-        // in sp: getDimension has applied the display's density and the user's font
-        // scale by the time it is read, so passing it on as sp would apply both twice.
         val resources = context.resources
         val padding = resources.getDimensionPixelSize(density.padding)
         views.setViewPadding(R.id.widget_root, padding, padding, padding, padding)
-        // Deliberately not the value or the ticker: an explicit text size on those
-        // switches off the uniform auto-sizing their bounded slot exists to serve. What
-        // they get instead is the slot itself, sized below.
-        views.setTextViewTextSize(
-            R.id.widget_name,
-            TypedValue.COMPLEX_UNIT_PX,
-            resources.getDimension(density.nameText),
-        )
-        views.setTextViewTextSize(
-            R.id.widget_footer,
-            TypedValue.COMPLEX_UNIT_PX,
-            resources.getDimension(density.footerText),
-        )
 
         val head = Rendering.formatFields(
             values = display.staticValues,
             style = timer.labelStyle,
             allowEmpty = display.tailMillis != null,
         )
+        val footer = targetSummary(context, timer, display)
 
         // A timer with no name shows no name row, whatever the variant asked for, so
-        // the value's box is measured against the rows that will actually be drawn.
+        // everything below is measured against the rows that will actually be drawn.
         val showName = detail != Detail.VALUE && timer.name.isNotBlank()
         val showFooter = detail == Detail.EVERYTHING
-        setValueHeight(
-            views,
-            valueHeightPx(
-                resources = resources,
-                size = size,
-                cellWidthDp = cellWidthDp,
-                density = density,
-                value = valueText(head, display.tailMillis),
-                showName = showName,
-                showFooter = showFooter,
-            ),
+        val text = Text(
+            value = valueText(head, display.tailMillis),
+            name = if (showName) timer.name else null,
+            footer = if (showFooter) footer else null,
         )
+        val metrics = metricsFor(resources, size, cellDp, density, text)
+
+        // Pixels rather than sp for the labels, because the sizes were read from
+        // resources declared in sp: getDimension has applied the display's density and
+        // the user's font scale by the time they are used, so passing them on as sp
+        // would apply both twice.
+        //
+        // Deliberately not the value or the ticker: an explicit text size on those
+        // switches off the uniform auto-sizing their bounded slot exists to serve. What
+        // they get instead is the slot itself.
+        views.setTextViewTextSize(R.id.widget_name, TypedValue.COMPLEX_UNIT_PX, metrics.labelText)
+        views.setTextViewTextSize(R.id.widget_footer, TypedValue.COMPLEX_UNIT_PX, metrics.footerText)
+        setValueHeight(views, metrics.valueHeight)
 
         // Resolved rather than left to the layout: on the wallpaper the choice
         // depends on the wallpaper itself, which no resource qualifier can express.
@@ -229,7 +220,7 @@ object WidgetRenderer {
         }
 
         views.setViewVisibility(R.id.widget_footer, if (showFooter) View.VISIBLE else View.GONE)
-        views.setTextViewText(R.id.widget_footer, targetSummary(context, timer, display))
+        views.setTextViewText(R.id.widget_footer, footer)
 
         views.setOnClickPendingIntent(
             R.id.widget_root,
@@ -245,61 +236,105 @@ object WidgetRenderer {
         else -> "$head  ${Rendering.formatClock(tailMillis)}"
     }
 
+    /** The three rows' text, with null for a row this variant is not drawing. */
+    private data class Text(val value: String, val name: String?, val footer: String?)
+
+    /** What [render] has to set: the value's box, and the size of each label. */
+    private data class Metrics(
+        val valueHeight: Int,
+        val labelText: Float,
+        val footerText: Float,
+    )
+
     /**
-     * How tall the value's box is: the smaller of what the cell leaves it and what its
-     * own text can fill.
+     * How large to draw each row on a cell of this size.
      *
-     * The second half is the fix for the gap, and it is why the width has to be known.
-     * A `TextView` centres its text in whatever box it is given, and the value's text
-     * is almost always limited by how *wide* the cell is rather than how tall — a date
-     * spelled out in full stops growing at 26sp on a phone-width cell however much
-     * height is going spare. So a box measured from height alone came out taller than
-     * the text inside it, and the surplus appeared as two bands of empty space: one
-     * between the name and the number, one between the number and the date. Sizing the
-     * box to the line the text will actually settle on leaves the surplus outside the
-     * rows, where the root's centre gravity turns it into margin around all three.
+     * Two decisions, in this order, and the order is the design.
      *
-     * The height still bounds it, because it must: a compact three-row cell has less
-     * room than the text would happily take, and there the value is what gives.
+     * **The value's box is the smaller of what the cell leaves it and what its own text
+     * can fill.** The second half is why the width has to be known. A `TextView` centres
+     * its text in whatever box it is given, and the value is almost always limited by
+     * how *wide* the cell is rather than how tall — a date spelled out in full stops
+     * growing at 26sp on a phone-width cell however much height is going spare. So a box
+     * measured from height alone came out taller than the text inside it, and the
+     * surplus showed up as two bands of empty space: one between the name and the
+     * number, one between the number and the date. Sizing the box to the line the text
+     * will actually settle on leaves the surplus outside the rows, where the root's
+     * centre gravity turns it into margin around all three. Height still bounds it,
+     * because it must — a compact three-row cell has less room than the text would take,
+     * and there the value is what gives.
      *
-     * The floor is the far end of the same trade. Past about a 1.5x font scale the
-     * labels want more than the cell has; the value is what the widget is for, so the
-     * labels are what clips.
+     * **The labels then grow into what is left.** Their band size is a floor, not a
+     * fixed size: 10sp is what fits a one-row cell with a number in it, and it was being
+     * drawn on cells with 40dp going spare, where a name is technically present and
+     * practically unreadable. They grow a point at a time while three things hold — the
+     * cell has the height, the label still fits the width without ellipsizing, and it
+     * stays under [LABEL_SHARE] of the value. The last one is what keeps the number the
+     * thing you read first. Growth is checked against the value's *wanted* line, so a
+     * label can never take a point off the number to spend on itself.
      *
-     * Every measurement here follows the user's font scale, which is why they are
-     * measurements rather than the dp figures they could otherwise have been.
+     * Every figure here is measured rather than assumed, so all of it follows the user's
+     * font scale.
      */
-    private fun valueHeightPx(
+    private fun metricsFor(
         resources: Resources,
-        size: SizeF,
-        cellWidthDp: Float?,
+        breakpoint: SizeF,
+        cellDp: SizeF?,
         density: Density,
-        value: String,
-        showName: Boolean,
-        showFooter: Boolean,
-    ): Int {
-        val padding = resources.getDimension(density.padding)
-        var box = size.height * resources.displayMetrics.density - 2 * padding
-        if (showName) box -= lineHeightPx(resources.getDimension(density.nameText))
-        if (showFooter) box -= lineHeightPx(resources.getDimension(density.footerText))
+        text: Text,
+    ): Metrics {
+        // Integer pixels throughout, and the same integers the framework will use: the
+        // rows now fill the cell exactly, so a fraction of a pixel rounded the wrong way
+        // is a fraction of a pixel of clipping.
+        val scale = resources.displayMetrics.density
+        val padding = resources.getDimensionPixelSize(density.padding)
+        val cellHeight = ((cellDp?.height ?: breakpoint.height) * scale).toInt()
+        val widthPx = cellDp?.let { (it.width * scale).toInt() - 2 * padding }
 
         val smallest = resources.getDimension(R.dimen.widget_value_text_min)
         val largest = resources.getDimension(R.dimen.widget_value_text_max)
-        val wanted = if (cellWidthDp == null) {
+        val wanted = if (widthPx == null) {
             largest
         } else {
-            fittingTextSizePx(
-                resources = resources,
-                text = value,
-                widthPx = cellWidthDp * resources.displayMetrics.density - 2 * padding,
-                smallestPx = smallest,
-                largestPx = largest,
-            )
+            fittingTextSizePx(resources, text.value, widthPx.toFloat(), smallest, largest)
+        }
+        val wantedLine = lineHeightPx(wanted, bold = true)
+
+        val nameBase = resources.getDimension(density.nameText)
+        val footerBase = resources.getDimension(density.footerText)
+        val ceiling = minOf(resources.getDimension(R.dimen.widget_label_text_max), wanted * LABEL_SHARE)
+        val step = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
+            1f,
+            resources.displayMetrics,
+        )
+
+        fun labels(boost: Float): Int =
+            (text.name?.let { lineHeightPx(nameBase + boost) } ?: 0) +
+                (text.footer?.let { lineHeightPx(footerBase + boost) } ?: 0)
+
+        fun fits(boost: Float): Boolean {
+            if (2 * padding + wantedLine + labels(boost) > cellHeight) return false
+            if (widthPx == null) return false
+            val name = text.name?.let { measureTextPx(it, nameBase + boost) } ?: 0f
+            val footer = text.footer?.let { measureTextPx(it, footerBase + boost) } ?: 0f
+            return maxOf(name, footer) <= widthPx
         }
 
-        return box.coerceIn(lineHeightPx(smallest, bold = true), lineHeightPx(wanted, bold = true))
-            .roundToInt()
+        var boost = 0f
+        while (nameBase + boost + step <= ceiling && fits(boost + step)) boost += step
+
+        val box = (cellHeight - 2 * padding - labels(boost))
+            .coerceIn(lineHeightPx(smallest, bold = true), wantedLine)
+        return Metrics(box, nameBase + boost, footerBase + boost)
     }
+
+    /**
+     * How much of the value's size a label may reach. Two thirds is far enough to read
+     * comfortably and near enough that the number is still what the eye lands on; above
+     * about three quarters the three rows start to read as one paragraph.
+     */
+    private const val LABEL_SHARE = 0.66f
 
     /**
      * The size uniform auto-sizing will settle on for one line of [text] in [widthPx],
@@ -329,15 +364,23 @@ object WidgetRenderer {
         return smallestPx
     }
 
+    /** How wide one line of [text] is at [textSizePx], in a label's own typeface. */
+    private fun measureTextPx(text: String, textSizePx: Float): Float =
+        TextPaint().apply { this.textSize = textSizePx }.measureText(text)
+
     /**
      * The height a single line of text at [textSizePx] occupies, font padding included
      * — which is what a `wrap_content` `TextView` measures to, and what the auto-sizing
      * search compares its own candidates against.
+     *
+     * From the integer metrics rather than the float ones, because those are what
+     * `StaticLayout` measures a line with: the fractional pair rounds the friendly way
+     * and would leave the rows a pixel taller than this function promised.
      */
-    private fun lineHeightPx(textSizePx: Float, bold: Boolean = false): Float {
+    private fun lineHeightPx(textSizePx: Float, bold: Boolean = false): Int {
         val paint = if (bold) valuePaint() else TextPaint()
         paint.textSize = textSizePx
-        val metrics = paint.fontMetrics
+        val metrics = paint.fontMetricsInt
         return metrics.bottom - metrics.top
     }
 
@@ -400,18 +443,14 @@ object WidgetRenderer {
         val resources = context.resources
         val padding = resources.getDimensionPixelSize(variant.density.padding)
         views.setViewPadding(R.id.widget_root, padding, padding, padding, padding)
-        setValueHeight(
-            views,
-            valueHeightPx(
-                resources = resources,
-                size = size,
-                cellWidthDp = null,
-                density = variant.density,
-                value = "",
-                showName = false,
-                showFooter = false,
-            ),
+        val metrics = metricsFor(
+            resources = resources,
+            breakpoint = size,
+            cellDp = null,
+            density = variant.density,
+            text = Text(value = "", name = null, footer = null),
         )
+        setValueHeight(views, metrics.valueHeight)
         views.setViewVisibility(R.id.widget_name, View.GONE)
         views.setViewVisibility(R.id.widget_ticker, View.GONE)
         views.setViewVisibility(R.id.widget_footer, View.GONE)

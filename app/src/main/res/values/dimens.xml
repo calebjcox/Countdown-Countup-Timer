@@ -25,6 +25,14 @@
     <dimen name="widget_footer_text_compact">10sp</dimen>
 
     <!--
+      A floor, not a fixed size. The four above are what fits a cell with a number
+      filling it; where the number does not need the room, WidgetRenderer grows the
+      labels a point at a time towards this, which is roughly where a caption stops
+      getting easier to read and starts competing with what it captions.
+    -->
+    <dimen name="widget_label_text_max">17sp</dimen>
+
+    <!--
       The value's box, and the range its auto-sizing searches inside it.
 
       The two text sizes are read from both sides for the same reason as the metrics

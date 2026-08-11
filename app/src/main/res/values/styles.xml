@@ -28,7 +28,7 @@
       value's box, splitting the name off the top of the number and the date off the
       bottom. Bounding the box instead leaves the surplus outside the rows, where the
       root's centre gravity turns it into margin and the three lines stay together.
-      WidgetRenderer sets the real height per variant; see valueHeightPx.
+      WidgetRenderer sets the real height per variant; see metricsFor.
     -->
     <style name="WidgetValue">
         <item name="android:layout_width">match_parent</item>

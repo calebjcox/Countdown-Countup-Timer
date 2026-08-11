@@ -241,7 +241,7 @@ object HomeScreen {
             zone = ZoneId.systemDefault(),
             // What a launcher reports through AppWidgetManager's options, and the
             // reason these widgets are spaced here as they are on a device.
-            cellWidthDp = requestedDp.width,
+            cellDp = requestedDp,
         )
         val view = forSize(remoteViews, context, requestedDp).apply(context, FrameLayout(context))
         Capture.repaintChronometers(view)

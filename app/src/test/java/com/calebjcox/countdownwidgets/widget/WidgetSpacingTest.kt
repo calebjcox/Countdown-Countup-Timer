@@ -15,6 +15,7 @@ import com.calebjcox.countdownwidgets.data.Timer
 import com.calebjcox.countdownwidgets.testing.VariantSelection
 import java.time.LocalDateTime
 import java.time.ZoneId
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -105,6 +106,83 @@ class WidgetSpacingTest {
         }
     }
 
+    /**
+     * A label's band size is a floor. On a cell with height going spare it is drawn
+     * larger, because 10sp on a widget with 40dp of margin around it is a caption
+     * nobody can read — which is the complaint this pins.
+     */
+    @Test
+    fun `the labels grow into a cell that has room for them`() {
+        val tight = labelSizes(abbreviated, 140f, 74f)
+        val roomy = labelSizes(abbreviated, 344f, 152f)
+
+        assertTrue(
+            "a 344x152 cell drew its name at ${roomy.first}sp, no larger than the " +
+                "${tight.first}sp a 140x74 cell has room for",
+            roomy.first > tight.first && roomy.second > tight.second,
+        )
+        assertTrue(
+            "a 344x152 cell drew its labels at ${roomy.first}sp / ${roomy.second}sp, " +
+                "which is still too small to read comfortably",
+            minOf(roomy.first, roomy.second) >= 14f,
+        )
+    }
+
+    /**
+     * Growing a label must never cost the number a point of its own size.
+     *
+     * Two copies of one timer, identical but for the length of the name: the short one
+     * leaves room for its labels to grow, the long one is held at the band's size by
+     * the width of the cell. The value cannot tell the difference — if it can, growth
+     * is being paid for out of the number.
+     */
+    @Test
+    fun `the value keeps its size whatever the labels do`() {
+        val short = abbreviated.copy(name = "Trip")
+        val long = abbreviated.copy(name = "A name with no room left to grow into")
+
+        for ((width, height) in CELLS) {
+            assertEquals(
+                "at ${width}x$height the value shrank when the labels beside it grew",
+                visibleValue(render(long, width, height)).textSize,
+                visibleValue(render(short, width, height)).textSize,
+                0.01f,
+            )
+        }
+    }
+
+    /**
+     * The width has a say as well as the height. Both timers' labels fit their cells at
+     * the band's own size, so an ellipsis on one of them can only have come from growth.
+     */
+    @Test
+    fun `no label is grown until it no longer fits`() {
+        for ((width, height) in CELLS) {
+            for (timer in listOf(spelledOut, abbreviated)) {
+                val root = render(timer, width, height)
+                for (id in listOf(R.id.widget_name, R.id.widget_footer)) {
+                    val label = root.findViewById<TextView>(id)
+                    if (label.visibility != View.VISIBLE) continue
+                    assertEquals(
+                        "at ${width}x$height '${label.text}' was drawn at " +
+                            "${label.textSize}px, which does not fit",
+                        0,
+                        requireNotNull(label.layout) { "the label never laid out" }
+                            .getEllipsisCount(0),
+                    )
+                }
+            }
+        }
+    }
+
+    /** The name's and footer's text size in sp, on a cell of this size. */
+    private fun labelSizes(timer: Timer, widthDp: Float, heightDp: Float): Pair<Float, Float> {
+        val root = render(timer, widthDp, heightDp)
+        val scale = context.resources.displayMetrics.scaledDensity
+        return root.findViewById<TextView>(R.id.widget_name).textSize / scale to
+            root.findViewById<TextView>(R.id.widget_footer).textSize / scale
+    }
+
     private fun assertHugs(timer: Timer, widthDp: Float, heightDp: Float) {
         val root = render(timer, widthDp, heightDp)
         val value = visibleValue(root)
@@ -153,7 +231,7 @@ class WidgetSpacingTest {
             timer = timer,
             nowMillis = nowMillis,
             zone = zone,
-            cellWidthDp = widthDp,
+            cellDp = SizeF(widthDp, heightDp),
         )
         val view = VariantSelection
             .forSize(views, context, SizeF(widthDp, heightDp))

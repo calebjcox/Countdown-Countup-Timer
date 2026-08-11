@@ -3,6 +3,8 @@ package com.calebjcox.countdownwidgets.widget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.res.Configuration
+import android.util.SizeF
 import com.calebjcox.countdownwidgets.data.TimerStore
 import java.time.ZoneId
 
@@ -44,7 +46,7 @@ object WidgetUpdater {
                 timer = store.timerForWidget(appWidgetId),
                 nowMillis = now,
                 zone = zone,
-                cellWidthDp = cellWidthDp(manager, appWidgetId),
+                cellDp = cellDp(context, manager, appWidgetId),
             )
             manager.updateAppWidget(appWidgetId, views)
         }
@@ -55,20 +57,43 @@ object WidgetUpdater {
     }
 
     /**
-     * How wide the launcher is drawing this widget, in dp, or null if it has not said.
+     * The content box the launcher is drawing this widget in, or null if it has not
+     * said. Without it the renderer sizes each variant for the smallest cell that can
+     * select it, which is right but leaves text smaller than it needs to be.
      *
-     * The narrow end of the range rather than the wide one. The two bracket the same
-     * widget across orientations — portrait is the narrower — and the renderer spends
-     * the number on how large the value's text can be, where guessing narrow costs a
-     * point of text size and guessing wide costs the spacing the number was read for.
+     * The bundle holds a *range*, not a size: the four values bracket the same widget
+     * across both orientations, narrow-and-tall in portrait and wide-and-short in
+     * landscape. Which pair is current is not in the bundle, so it comes from the
+     * configuration.
      *
-     * Null is normal, not a failure: the bundle is empty until the launcher has
-     * measured the widget once. The first draw is sized from height alone and
-     * `onAppWidgetOptionsChanged` brings the real width moments later.
+     * Null is normal rather than a failure — the bundle is empty until the host has
+     * measured the widget once. It does not stay empty: `AppWidgetHostView` writes
+     * these values during layout whenever they change, which is what makes
+     * `onAppWidgetOptionsChanged` fire on a resize, a rotation or a grid change, and
+     * what makes it safe to size text for the cell that is really there.
      */
-    private fun cellWidthDp(manager: AppWidgetManager, appWidgetId: Int): Float? =
-        manager.getAppWidgetOptions(appWidgetId)
-            ?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
-            ?.takeIf { it > 0 }
-            ?.toFloat()
+    private fun cellDp(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetId: Int,
+    ): SizeF? {
+        val options = manager.getAppWidgetOptions(appWidgetId) ?: return null
+        val portrait = context.resources.configuration.orientation !=
+            Configuration.ORIENTATION_LANDSCAPE
+        val width = options.getInt(
+            if (portrait) {
+                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH
+            } else {
+                AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH
+            },
+        )
+        val height = options.getInt(
+            if (portrait) {
+                AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT
+            } else {
+                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT
+            },
+        )
+        return if (width > 0 && height > 0) SizeF(width.toFloat(), height.toFloat()) else null
+    }
 }
