@@ -36,7 +36,11 @@ import org.robolectric.annotation.Config
  * because that is what the picker preview promises before the widget is dropped.
  *
  * SDK 36 rather than the app's targetSdk of 37 because 36 is the newest platform the
- * last stable Robolectric ships. Every API this exercises landed in 31.
+ * last stable Robolectric ships, and the same one the asset generator runs on — one
+ * pinned `android-all` jar serves both. Every API this exercises landed in 31, so a
+ * lower SDK would do, but it would mean staging a second platform jar to save nothing.
+ * Robolectric will not build a sandbox for 36 on a JDK older than 21, which is why
+ * both workflows ask for Java 21.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
