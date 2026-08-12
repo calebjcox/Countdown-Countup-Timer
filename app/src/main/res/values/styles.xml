@@ -14,20 +14,27 @@
         <item name="android:ellipsize">end</item>
         <item name="android:gravity">center</item>
         <item name="android:maxLines">1</item>
-        <item name="android:textSize">@dimen/widget_name_text</item>
+        <item name="android:textSize">@dimen/widget_label_text_min</item>
     </style>
 
     <!--
-      A fixed-height weighted slot rather than wrap_content, so uniform auto-sizing
-      has a bounded box to work in; tabular figures stop the text jittering as a
-      ticking clock rolls through digits of different widths.
+      A fixed-height slot rather than wrap_content, so uniform auto-sizing has a
+      bounded box to work in; tabular figures stop the text jittering as a ticking
+      clock rolls through digits of different widths.
+
+      Fixed rather than weighted, which is what it used to be. A weighted slot absorbs
+      every pixel the labels leave, and the value can only grow to 44sp — so on any
+      cell taller than the rows need, the surplus became empty space *inside* the
+      value's box, splitting the name off the top of the number and the date off the
+      bottom. Bounding the box instead leaves the surplus outside the rows, where the
+      root's centre gravity turns it into margin and the three lines stay together.
+      WidgetRenderer sets the real height per variant; see metricsFor.
     -->
     <style name="WidgetValue">
         <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">0dp</item>
-        <item name="android:layout_weight">1</item>
-        <item name="android:autoSizeMaxTextSize">44sp</item>
-        <item name="android:autoSizeMinTextSize">11sp</item>
+        <item name="android:layout_height">@dimen/widget_value_height</item>
+        <item name="android:autoSizeMaxTextSize">@dimen/widget_value_text_max</item>
+        <item name="android:autoSizeMinTextSize">@dimen/widget_value_text_min</item>
         <item name="android:autoSizeStepGranularity">1sp</item>
         <item name="android:autoSizeTextType">uniform</item>
         <item name="android:fontFeatureSettings">tnum</item>
@@ -42,7 +49,7 @@
         <item name="android:ellipsize">end</item>
         <item name="android:gravity">center</item>
         <item name="android:maxLines">1</item>
-        <item name="android:textSize">@dimen/widget_footer_text</item>
+        <item name="android:textSize">@dimen/widget_label_text_min</item>
     </style>
 
     <!--

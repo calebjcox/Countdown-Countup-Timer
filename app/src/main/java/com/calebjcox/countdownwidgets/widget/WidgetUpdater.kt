@@ -3,6 +3,8 @@ package com.calebjcox.countdownwidgets.widget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.res.Configuration
+import android.util.SizeF
 import com.calebjcox.countdownwidgets.data.TimerStore
 import java.time.ZoneId
 
@@ -44,6 +46,7 @@ object WidgetUpdater {
                 timer = store.timerForWidget(appWidgetId),
                 nowMillis = now,
                 zone = zone,
+                cellDp = cellDp(context, manager, appWidgetId),
             )
             manager.updateAppWidget(appWidgetId, views)
         }
@@ -51,5 +54,46 @@ object WidgetUpdater {
         // Redrawing changes when the next boundary is, so the alarm is always
         // re-armed from the freshest state rather than left where it was.
         TimerScheduler.reschedule(context)
+    }
+
+    /**
+     * The content box the launcher is drawing this widget in, or null if it has not
+     * said. Without it the renderer sizes each variant for the smallest cell that can
+     * select it, which is right but leaves text smaller than it needs to be.
+     *
+     * The bundle holds a *range*, not a size: the four values bracket the same widget
+     * across both orientations, narrow-and-tall in portrait and wide-and-short in
+     * landscape. Which pair is current is not in the bundle, so it comes from the
+     * configuration.
+     *
+     * Null is normal rather than a failure — the bundle is empty until the host has
+     * measured the widget once. It does not stay empty: `AppWidgetHostView` writes
+     * these values during layout whenever they change, which is what makes
+     * `onAppWidgetOptionsChanged` fire on a resize, a rotation or a grid change, and
+     * what makes it safe to size text for the cell that is really there.
+     */
+    private fun cellDp(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetId: Int,
+    ): SizeF? {
+        val options = manager.getAppWidgetOptions(appWidgetId) ?: return null
+        val portrait = context.resources.configuration.orientation !=
+            Configuration.ORIENTATION_LANDSCAPE
+        val width = options.getInt(
+            if (portrait) {
+                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH
+            } else {
+                AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH
+            },
+        )
+        val height = options.getInt(
+            if (portrait) {
+                AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT
+            } else {
+                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT
+            },
+        )
+        return if (width > 0 && height > 0) SizeF(width.toFloat(), height.toFloat()) else null
     }
 }

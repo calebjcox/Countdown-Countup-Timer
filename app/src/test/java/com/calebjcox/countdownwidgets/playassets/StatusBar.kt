@@ -46,25 +46,21 @@ object StatusBar {
         dark: Boolean,
         nowMillis: Long,
         zone: ZoneId,
-        onWallpaper: Boolean,
     ) {
         val height = heightPx(density)
         val tint = if (dark) 0xFFF1F2F6.toInt() else 0xFF1B1B1F.toInt()
         val centreY = height / 2f
 
+        // Flat, with no shadow behind it, over a photograph as much as over an app
+        // screen. Android's own bar has none — the clock and the icons on a real home
+        // screen are unshadowed however busy the wallpaper is — and a bar that carries
+        // one is the one piece of the composite that announces it was drawn here.
         val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = tint
             textSize = 13f * density
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            // Only over a photograph, where the tone underneath is not ours to choose.
-            // On an app screen the bar sits on a flat surface colour and a shadow would
-            // just look like a rendering mistake.
-            if (onWallpaper) setShadowLayer(3f * density, 0f, density, 0x88000000.toInt())
         }
-        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = tint
-            if (onWallpaper) setShadowLayer(3f * density, 0f, density, 0x88000000.toInt())
-        }
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = tint }
 
         // Clock, left, vertically centred on its own metrics rather than on the ascent.
         val clock = DateTimeFormatter.ofPattern("h:mm")
@@ -123,10 +119,7 @@ object StatusBar {
             fill,
             radius / 2,
             radius / 2,
-            Paint(paint).apply {
-                style = Paint.Style.FILL
-                clearShadowLayer()
-            },
+            Paint(paint).apply { style = Paint.Style.FILL },
         )
         return bodyW + nubW
     }

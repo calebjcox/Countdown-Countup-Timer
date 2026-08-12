@@ -130,7 +130,6 @@ object Capture {
             dark = dark,
             nowMillis = nowMillis,
             zone = ZoneId.systemDefault(),
-            onWallpaper = false,
         )
         return bitmap
     }
