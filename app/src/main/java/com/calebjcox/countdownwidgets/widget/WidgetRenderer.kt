@@ -182,13 +182,25 @@ object WidgetRenderer {
         views.setTextViewTextSize(R.id.widget_footer, TypedValue.COMPLEX_UNIT_PX, metrics.labelText)
         setValueHeight(views, metrics.valueHeight)
 
-        // Resolved rather than left to the layout: on the wallpaper the choice
-        // depends on the wallpaper itself, which no resource qualifier can express.
-        val palette = WidgetPalette.forTimer(context, timer)
-        views.setTextColor(R.id.widget_name, palette.secondary)
-        views.setTextColor(R.id.widget_value, palette.primary)
-        views.setTextColor(R.id.widget_ticker, palette.primary)
-        views.setTextColor(R.id.widget_footer, palette.secondary)
+        // Only on the wallpaper, where the choice depends on the wallpaper itself and
+        // no resource qualifier can express it. On its own panel the layout's -night
+        // pair is not merely sufficient, it is the only thing that stays correct: a
+        // colour set from here is resolved in this process, at build time, and then
+        // frozen into the RemoteViews the launcher keeps, while the panel behind it is
+        // resolved from the same resources by the launcher every time it inflates them.
+        // Switch the phone to dark mode and the two part company — the panel turns
+        // dark, the text keeps the light tone it was built with — and it stays that way
+        // until something redraws the widget, which for a day-precision timer is the
+        // next midnight. Leaving the pair to the resource system is what keeps it
+        // together, and it costs a widget on a panel nothing: the two colours agree by
+        // construction because they come from the same qualifier.
+        if (!timer.showBackground) {
+            val palette = WidgetPalette.forTimer(context, timer)
+            views.setTextColor(R.id.widget_name, palette.secondary)
+            views.setTextColor(R.id.widget_value, palette.primary)
+            views.setTextColor(R.id.widget_ticker, palette.primary)
+            views.setTextColor(R.id.widget_footer, palette.secondary)
+        }
 
         views.setViewVisibility(R.id.widget_name, if (showName) View.VISIBLE else View.GONE)
         views.setTextViewText(R.id.widget_name, timer.name)

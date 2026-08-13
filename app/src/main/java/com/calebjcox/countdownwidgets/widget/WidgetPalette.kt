@@ -21,6 +21,12 @@ import com.calebjcox.countdownwidgets.data.Timer
  * decision a launcher makes for its icon labels — which is a question about the
  * *wallpaper*, not about the system theme. Those two signals part company exactly
  * when it matters: a phone in light mode with a dark photo behind the widget.
+ *
+ * Which is why only the second case is answered here for a real widget. The panel
+ * colours below are for views this process draws itself — the editor's preview —
+ * where a colour resolved now is a colour drawn now. `WidgetRenderer` leaves the
+ * panelled widget's text to its layout instead, because a `RemoteViews` colour
+ * outlives the configuration it was resolved in; see the note there.
  */
 object WidgetPalette {
 
