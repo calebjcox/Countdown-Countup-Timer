@@ -68,6 +68,22 @@ class WidgetSpacingTest {
         showBackground = true,
     )
 
+    /**
+     * Two characters, which at a single cell is the interesting case: the value comes
+     * out taller than it is wide, so it is the *height* that bounds it and every dp of
+     * height it is given turns into a larger number.
+     */
+    private val twoCharacters = Timer(
+        id = "tomorrow",
+        name = "Trip",
+        spec = TimerSpec.of(
+            target = LocalDateTime.parse("2026-08-10T00:00"),
+            precision = Precision.DATE,
+            fields = setOf(TimeField.DAY),
+        ),
+        showBackground = true,
+    )
+
     /** Short enough to be limited by the cell's height instead. */
     private val abbreviated = Timer(
         id = "christmas",
@@ -89,21 +105,89 @@ class WidgetSpacingTest {
 
     @Test
     fun `the value's box hugs a spelled-out date at every size`() {
-        for ((width, height) in CELLS) assertHugs(spelledOut, width, height)
+        for ((width, height) in CELLS + SINGLE_CELLS) assertHugs(spelledOut, width, height)
     }
 
     @Test
     fun `the value's box hugs an abbreviated one at every size`() {
-        for ((width, height) in CELLS) assertHugs(abbreviated, width, height)
+        for ((width, height) in CELLS + SINGLE_CELLS) assertHugs(abbreviated, width, height)
     }
 
     /** The rows are the whole widget: nothing may be pushed out of the cell. */
     @Test
     fun `the rows fit the cell they were built for`() {
-        for ((width, height) in CELLS) {
+        for ((width, height) in CELLS + SINGLE_CELLS) {
             assertRowsFit(spelledOut, width, height)
             assertRowsFit(abbreviated, width, height)
         }
+    }
+
+    /**
+     * The row a dropped name frees belongs to the number — every dp of it, whenever the
+     * number is able to use it.
+     *
+     * Which it is not always, and the pair below is the whole rule. A value taller than
+     * it is wide is bounded by the height, so the freed row is exactly what it was short
+     * of and the number grows into it. A value already as wide as its cell is bounded by
+     * the width: another point of size would overflow the line rather than fill the
+     * height, so it keeps the size it had and stays centred. Nothing is held back in
+     * either case — the second one has nowhere to put what it was given.
+     */
+    @Test
+    fun `a dropped name goes to a number that can use it`() {
+        val (width, height) = SINGLE_CELLS.first()
+        val dropped = "Parents Arrive"
+
+        val tallerThanWide = visibleValue(render(twoCharacters, width, height)).textSize
+        val roomToGrow = visibleValue(
+            render(twoCharacters.copy(name = dropped), width, height),
+        ).textSize
+        assertTrue(
+            "at ${width}x$height the number stayed at ${tallerThanWide}px with a whole " +
+                "row handed back to it",
+            roomToGrow > tallerThanWide,
+        )
+
+        val widerThanTall = visibleValue(render(abbreviated.copy(name = "Trip"), width, height))
+        val noRoomToGrow = visibleValue(render(abbreviated.copy(name = dropped), width, height))
+        assertEquals(
+            "at ${width}x$height a number already filling the width changed size when " +
+                "the name beside it went",
+            widerThanTall.textSize,
+            noRoomToGrow.textSize,
+            0.01f,
+        )
+    }
+
+    /**
+     * A single cell draws a name it can spell out and drops one it cannot.
+     *
+     * This is why the two tests below run on [CELLS] alone: everywhere else a long name
+     * is ellipsized, so a short name and a long one produce the same rows and only their
+     * text size can vary, which is the invariant those two pin. Here the long name is
+     * not drawn at all, and what happens to its row is the test above.
+     */
+    @Test
+    fun `a single cell drops a name it cannot spell out`() {
+        val short = abbreviated.copy(name = "Trip")
+        val long = abbreviated.copy(name = "Parents Arrive")
+        val (width, height) = SINGLE_CELLS.first()
+
+        assertEquals(
+            "at ${width}x$height a name too long to read was drawn anyway",
+            View.GONE,
+            render(long, width, height).findViewById<TextView>(R.id.widget_name).visibility,
+        )
+        assertEquals(
+            "at ${width}x$height a name that fits was dropped",
+            View.VISIBLE,
+            render(short, width, height).findViewById<TextView>(R.id.widget_name).visibility,
+        )
+        assertTrue(
+            "at ${width}x$height dropping the name shrank the number it was making room for",
+            visibleValue(render(long, width, height)).textSize >=
+                visibleValue(render(short, width, height)).textSize,
+        )
     }
 
     /**
@@ -267,6 +351,18 @@ class WidgetSpacingTest {
             344f to 88f,
             344f to 152f,
             400f to 60f,
+        )
+
+        /**
+         * What one cell comes to: a phone's column and row, the same column flattened,
+         * and a 7-inch tablet's. Kept apart from [CELLS] because the two tests that
+         * compare a short name against a long one ask a question a single cell answers
+         * differently — see the test that pins it.
+         */
+        val SINGLE_CELLS = listOf(
+            64f to 76f,
+            64f to 56f,
+            105f to 84f,
         )
     }
 }

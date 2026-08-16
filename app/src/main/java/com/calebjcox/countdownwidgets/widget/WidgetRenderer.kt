@@ -43,7 +43,35 @@ import java.time.format.FormatStyle
 object WidgetRenderer {
 
     /** Which rows to show, chosen by the launcher from the cell size. */
-    private enum class Detail { VALUE, VALUE_AND_NAME, EVERYTHING }
+    private enum class Detail {
+        /** Just the number. */
+        VALUE,
+
+        /**
+         * The number, and the name when the cell is wide enough to spell it out whole.
+         *
+         * The band for a one-cell-wide widget, and the only one that asks. Everywhere
+         * else a name too long for its cell is ellipsized, which still says something —
+         * "Parents Ar…" over a number is a widget you can tell from the one beside it.
+         * A single cell has room for about five characters at the label floor, and
+         * "Pare…" is not a name, it is a smudge above the thing you actually wanted to
+         * see. So here the name is drawn whole or not at all.
+         *
+         * The row it gives up goes to the number, which is what [metricsFor] does with
+         * any height a label does not take: `1d` on a phone's cell is drawn at 35sp
+         * beside a name and 44sp without one, and it ends up taller than it is wide.
+         *
+         * What does not move is a value already as wide as the cell. `25d` measures 51dp
+         * of a 52dp box, so the next point of size would overflow the line rather than
+         * fill the height, and it stays at 30sp either way — centred, and no smaller for
+         * the name that was there. That is a consequence rather than a policy: height
+         * only helps a number that has somewhere to put it.
+         */
+        VALUE_AND_FITTING_NAME,
+
+        VALUE_AND_NAME,
+        EVERYTHING,
+    }
 
     /**
      * How tightly the rows are packed. A separate axis from [Detail] because the two
@@ -83,17 +111,28 @@ object WidgetRenderer {
      * one-row cell has ever offered, so the target date was unreachable at every 1-row
      * size — see issue #11 and the sizes in `DeviceSpec`.
      *
-     * The widths track the provider's own `minWidth` of 110dp rather than a guess at
-     * how wide two cells are, so width cannot demote a legally-sized widget. `ROOMY` is
-     * the exception: a one-cell-wide column has the height for three rows but not the
-     * width to spend on padding, so it stays compact and keeps the room for the text.
+     * The widths track the provider's own minimums — `minWidth` of 110dp for the size
+     * it is offered at, `minResizeWidth` of 40dp for the smallest it can be dragged to
+     * — rather than a guess at how wide that many cells are, so width cannot demote a
+     * legally-sized widget. `ROOMY` is
+     * the exception: a narrow column has the height for three rows but not the width to
+     * spend on padding, so it stays compact and keeps the room for the text.
      *
      * Two entries carry the same variant at different heights. That is not redundancy:
      * each one also sizes the rows to the cell it is for — see [metricsFor] — so the
      * pair is what lets a tall one-row cell spend its extra height on a bigger number
      * rather than on margin.
+     *
+     * The two 56dp entries are the single-cell pair, and 56 is a floor rather than a
+     * measurement: one column of a phone's grid comes to something like 64dp of content
+     * box and a tablet's to over 100, so any real 1x1 clears it, while nothing two cells
+     * wide is ever near enough to be picked by it. Squared distance is what makes that
+     * safe — a 140x74 cell is 30dp from the 110x68 entry and 84dp from this one — so
+     * adding a size below the ladder cannot disturb the sizes above it.
      */
     private val BREAKPOINTS = listOf(
+        SizeF(56f, 40f) to Variant(Detail.VALUE, Density.COMPACT),
+        SizeF(56f, 64f) to Variant(Detail.VALUE_AND_FITTING_NAME, Density.COMPACT),
         SizeF(110f, 40f) to Variant(Detail.VALUE, Density.COMPACT),
         SizeF(110f, 50f) to Variant(Detail.VALUE_AND_NAME, Density.COMPACT),
         SizeF(110f, 68f) to Variant(Detail.EVERYTHING, Density.COMPACT),
@@ -159,9 +198,20 @@ object WidgetRenderer {
         )
         val footer = targetSummary(context, timer, display)
 
-        // A timer with no name shows no name row, whatever the variant asked for, so
-        // everything below is measured against the rows that will actually be drawn.
-        val showName = detail != Detail.VALUE && timer.name.isNotBlank()
+        // A timer with no name shows no name row, whatever the variant asked for — and
+        // on a single cell, neither does one too long to be read. Everything below is
+        // measured against the rows that will actually be drawn.
+        //
+        // The breakpoint stands in for a cell nobody has measured yet, as it does
+        // throughout: it is the narrowest cell that can select this variant, so a name
+        // it clears is a name every cell in the band has room for.
+        val showName = timer.name.isNotBlank() && when (detail) {
+            Detail.VALUE -> false
+            Detail.VALUE_AND_FITTING_NAME ->
+                measureTextPx(timer.name, resources.getDimension(R.dimen.widget_label_text_min)) <=
+                    contentWidthPx(resources, cellDp?.width ?: size.width, padding)
+            Detail.VALUE_AND_NAME, Detail.EVERYTHING -> true
+        }
         val showFooter = detail == Detail.EVERYTHING
         val text = Text(
             value = valueText(head, display.tailMillis),
@@ -288,7 +338,7 @@ object WidgetRenderer {
         val scale = resources.displayMetrics.density
         val padding = resources.getDimensionPixelSize(density.padding)
         val cellHeight = ((cellDp?.height ?: breakpoint.height) * scale).toInt()
-        val widthPx = cellDp?.let { (it.width * scale).toInt() - 2 * padding }
+        val widthPx = cellDp?.let { contentWidthPx(resources, it.width, padding) }
 
         val smallest = resources.getDimension(R.dimen.widget_value_text_min)
         val largest = resources.getDimension(R.dimen.widget_value_text_max)
@@ -364,6 +414,14 @@ object WidgetRenderer {
         }
         return smallestPx
     }
+
+    /**
+     * How much of a [widthDp]-wide cell a row may occupy, once the root's padding on
+     * both sides is paid for. Integer pixels, and the same ones the framework will
+     * measure with.
+     */
+    private fun contentWidthPx(resources: Resources, widthDp: Float, paddingPx: Int): Int =
+        (widthDp * resources.displayMetrics.density).toInt() - 2 * paddingPx
 
     /** How wide one line of [text] is at [textSizePx], in a label's own typeface. */
     private fun measureTextPx(text: String, textSizePx: Float): Float =

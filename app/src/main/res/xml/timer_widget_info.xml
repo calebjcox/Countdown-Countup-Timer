@@ -5,12 +5,26 @@
   changes. This half-hourly system-managed update costs nothing extra — it never
   wakes the device, and it is re-registered across reboots by the framework — but it
   guarantees a widget cannot stay wrong indefinitely if an alarm is ever lost.
+
+  minResizeWidth is what a launcher's resize handles stop at, and it defaults to
+  minWidth — so until it was declared here, a widget dropped at 2x1 could not be
+  squeezed into one column however much the renderer could handle it. 40dp is one cell:
+  the legacy 70n-30 formula's answer for n=1, and still what launchers round to a single
+  column and a single row.
+
+  minWidth stays at 110dp because it is a different number: not the smallest this widget
+  works at, but the size it is *offered* at, which is still two cells, because that is
+  where it can name what it counts and print the date. Someone who wants a bare number
+  in one cell drags the handles in; WidgetRenderer's breakpoints cover everything from
+  there up.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="com.calebjcox.countdownwidgets.ui.WidgetConfigActivity"
     android:description="@string/widget_description"
     android:initialLayout="@layout/widget_timer_wallpaper"
     android:minHeight="40dp"
+    android:minResizeHeight="40dp"
+    android:minResizeWidth="40dp"
     android:minWidth="110dp"
     android:previewLayout="@layout/widget_preview"
     android:resizeMode="horizontal|vertical"

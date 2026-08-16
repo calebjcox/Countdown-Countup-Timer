@@ -16,7 +16,7 @@
     <string name="empty_body">Create a timer, then add a widget from your home screen to put it where you\'ll see it.</string>
     <string name="add_timer">New timer</string>
     <string name="how_to_add_a_widget">How to add a widget</string>
-    <string name="how_to_add_a_widget_body">Long-press an empty spot on your home screen, tap Widgets, find Countdowns, and drag it where you want it. You\'ll be asked which timer it should show.</string>
+    <string name="how_to_add_a_widget_body">Long-press an empty spot on your home screen, tap Widgets, find Countdowns, and drag it where you want it. You\'ll be asked which timer it should show. Long-press the widget afterwards to resize it: pull it in to a single cell for just the number, or out to show the name and the target date.</string>
     <string name="got_it">Got it</string>
 
     <!-- Theme -->

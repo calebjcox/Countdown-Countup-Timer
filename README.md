@@ -303,6 +303,25 @@ drag it out. You will be asked which timer it should show. Tapping a widget open
 that timer for editing; long-pressing offers **reconfigure** to point it at a
 different one.
 
+It arrives as a 2x1, which is the size that has room to name what it is counting and
+print the target date. From there it resizes down to **a single cell** — drag the
+handles in, and what is left is the number, which on a tablet especially is all a
+simple countdown needs.
+
+Nothing is configured to make that work. A widget has always drawn itself for the cell
+it ends up in rather than the one it was dropped at, so one cell is simply the smallest
+entry in that table:
+
+| Cell | Shows |
+| --- | --- |
+| 1x1 | the value, and the name if it can be spelled out whole |
+| 2x1 and up | the name, the value, and the target date |
+
+The name is the one row that asks. A single cell has room for about five characters at
+the label floor, so a name that does not fit is dropped rather than ellipsized: `Pare…`
+above a number is not a name, it is a smudge above the thing you wanted to see. Short
+names — `Trip`, `Japan` — survive at 1x1 on a phone, and most names do on a tablet.
+
 Timers and widgets are separate: one timer can drive several widgets, deleting a
 widget leaves the timer alone, and deleting a timer leaves its widgets asking for a
 new one rather than vanishing.

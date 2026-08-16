@@ -18,6 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /**
  * Pins which rows a given cell size renders.
@@ -41,9 +42,16 @@ import org.robolectric.annotation.Config
  * lower SDK would do, but it would mean staging a second platform jar to save nothing.
  * Robolectric will not build a sandbox for 36 on a JDK older than 21, which is why
  * both workflows ask for Java 21.
+ *
+ * `@GraphicsMode(NATIVE)` for the same reason the spacing test next door needs it: one
+ * of the rules below — whether a single cell is wide enough to spell out a name — is
+ * decided by measuring text, and in Robolectric's default LEGACY mode every string
+ * measures zero wide, so every name would "fit" and the assertion would pass on a widget
+ * that renders a smudge.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class WidgetVariantSizeTest {
 
     private val context: Context get() = RuntimeEnvironment.getApplication()
@@ -92,6 +100,31 @@ class WidgetVariantSizeTest {
         assertRows(110f, 120f, name = true, footer = true)
     }
 
+    /**
+     * The sizes a 1x1 comes to. One column is roughly 64dp of content box on a phone and
+     * over 100 on a tablet, and the row is 76dp or more — so both land on the single-cell
+     * band rather than falling off the bottom of the ladder, and the 10-inch cell is
+     * large enough to be handed the full three rows instead.
+     */
+    @Test
+    fun `a one-by-one cell shows the number and a name that fits`() {
+        // A phone, and a name with no hope of fitting 52dp at the 12sp floor: it goes,
+        // rather than being drawn as "Paren…" over the number.
+        assertRows(64f, 76f, name = false, footer = false, timer = timer.copy(name = "Parents Arrive"))
+        // The same cell, a name short enough to be read: it stays.
+        assertRows(64f, 76f, name = true, footer = false, timer = timer.copy(name = "Trip"))
+        // A 7-inch tablet, which is where the size was asked for: room for both.
+        assertRows(105f, 84f, name = true, footer = false)
+        // A 10-inch tablet's cell is wide enough for the whole thing, date included.
+        assertRows(130f, 92f, name = true, footer = true)
+    }
+
+    /** A cell too short for two rows keeps the number, whatever its width allows. */
+    @Test
+    fun `a squat one-by-one cell keeps only the number`() {
+        assertRows(64f, 56f, name = false, footer = false, timer = timer.copy(name = "Trip"))
+    }
+
     @Test
     fun `a squashed cell drops rows in order`() {
         // Wide but flattened: no room for a third row, still room to say what it counts.
@@ -108,15 +141,24 @@ class WidgetVariantSizeTest {
         assertRows(90f, 30f, name = false, footer = false)
     }
 
-    private fun assertRows(widthDp: Float, heightDp: Float, name: Boolean, footer: Boolean) {
+    private fun assertRows(
+        widthDp: Float,
+        heightDp: Float,
+        name: Boolean,
+        footer: Boolean,
+        timer: Timer = this.timer,
+    ) {
+        val size = SizeF(widthDp, heightDp)
         val views = WidgetRenderer.build(
             context = context,
             appWidgetId = 1,
             timer = timer,
             nowMillis = nowMillis,
             zone = ZoneId.of("America/Denver"),
+            // Whether a name fits is a question about the cell in front of the widget,
+            // so the cell has to be handed over the same way WidgetUpdater hands it over.
+            cellDp = size,
         )
-        val size = SizeF(widthDp, heightDp)
         val view = VariantSelection.forSize(views, context, size)
             .apply(context, FrameLayout(context))
 
