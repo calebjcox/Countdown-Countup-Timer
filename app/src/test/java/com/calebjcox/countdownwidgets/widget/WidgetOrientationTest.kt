@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.SizeF
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.RemoteViews
 import android.widget.TextView
 import com.calebjcox.countdownwidgets.R
@@ -73,40 +74,110 @@ class WidgetOrientationTest {
         showBackground = true,
     )
 
+    /**
+     * The same widget counting in units spelled out in full, which is what a cell has to
+     * be measured against to say anything about filling it. `8d` is two characters: on a
+     * cell the size of a tablet's screen it reaches `widget_value_text_max` — a sanity
+     * bound, deliberately above what any cell asks for — and stops there with height to
+     * spare, so its size says nothing about which cell it was sized for.
+     */
+    private val spelledOut = timer.copy(
+        id = "spelled-out",
+        spec = TimerSpec.of(
+            target = LocalDateTime.parse("2027-08-10T00:00"),
+            precision = Precision.DATE,
+            fields = setOf(TimeField.MONTH, TimeField.WEEK, TimeField.DAY),
+        ),
+        labelStyle = LabelStyle.LONG,
+    )
+
+    /**
+     * Both, everywhere the question is about which cell a variant was sized for. The two
+     * are limited by different things — one by the width of the cell, one by nothing but
+     * its height — and a variant sized for the wrong cell can hide behind either.
+     */
+    private val timers = listOf(timer, spelledOut)
+
     @Test
     fun `the portrait cell keeps its size when a landscape cell is reported too`() {
-        for ((portrait, landscape) in PAIRS) {
-            val alone = valueSizeSp(listOf(portrait), portrait)
-            val both = valueSizeSp(listOf(portrait, landscape), portrait)
+        for (timer in timers) {
+            for ((portrait, landscape) in PAIRS) {
+                val alone = valueSizeSp(listOf(portrait), portrait, timer)
+                val both = valueSizeSp(listOf(portrait, landscape), portrait, timer)
 
-            assertEquals(
-                "reporting the ${landscape.width}x${landscape.height} landscape cell as " +
-                    "well cost the ${portrait.width}x${portrait.height} portrait one " +
-                    "${alone - both}sp of its number",
-                alone,
-                both,
-                0.01f,
-            )
-            // Teeth: without this the test would pass on a widget that collapsed both
-            // cells to the floor, which is the failure it exists to catch.
-            assertTrue(
-                "a ${portrait.width}x${portrait.height} cell drew its number at " +
-                    "${both}sp, no bigger than the captions beside it",
-                both >= 2 * LABEL_FLOOR_SP,
-            )
+                assertEquals(
+                    "with '${timer.id}', reporting the " +
+                        "${landscape.width}x${landscape.height} landscape cell as well " +
+                        "cost the ${portrait.width}x${portrait.height} portrait one " +
+                        "${alone - both}sp of its number",
+                    alone,
+                    both,
+                    0.01f,
+                )
+                // Teeth: without this the test would pass on a widget that collapsed both
+                // cells to the floor, which is the failure it exists to catch.
+                assertTrue(
+                    "a ${portrait.width}x${portrait.height} cell drew '${timer.id}' at " +
+                        "${both}sp, which is the size the auto-sizing gives up at",
+                    both > VALUE_FLOOR_SP,
+                )
+            }
         }
     }
 
     @Test
     fun `the landscape cell keeps its size when a portrait cell is reported too`() {
-        for ((portrait, landscape) in PAIRS) {
-            assertEquals(
-                "at ${landscape.width}x${landscape.height}",
-                valueSizeSp(listOf(landscape), landscape),
-                valueSizeSp(listOf(portrait, landscape), landscape),
-                0.01f,
-            )
+        for (timer in timers) {
+            for ((portrait, landscape) in PAIRS) {
+                assertEquals(
+                    "with '${timer.id}', at ${landscape.width}x${landscape.height}",
+                    valueSizeSp(listOf(landscape), landscape, timer),
+                    valueSizeSp(listOf(portrait, landscape), landscape, timer),
+                    0.01f,
+                )
+            }
         }
+    }
+
+    /**
+     * The complaint itself, which the two equalities above cannot state on their own:
+     * they say the second cell costs the first nothing, and would hold just as well if
+     * both came out small. A widget dragged out large has to *fill* what it was dragged
+     * out to, in whichever orientation it is drawn.
+     *
+     * Four fifths is a low bar — where the line breaks fall decides the rest, and every
+     * cell here clears nine tenths — while a tablet's portrait cell sized for its
+     * landscape twin reaches two thirds and leaves the rest as margin.
+     */
+    @Test
+    fun `a large widget fills the cell it is drawn in whichever one that is`() {
+        for ((portrait, landscape) in PAIRS) {
+            for (cell in listOf(portrait, landscape)) {
+                val fill = fillOf(listOf(portrait, landscape), cell, spelledOut)
+                assertTrue(
+                    "at ${cell.width}x${cell.height} the rows use ${100f * fill}% of the " +
+                        "cell, so the rest of the widget is empty space",
+                    fill >= 0.8f,
+                )
+            }
+        }
+    }
+
+    /**
+     * A host is free to report more cells than the size map has room to key one each.
+     * `RemoteViews` refuses a map above sixteen entries outright, so the widget has to
+     * stay inside that whatever it is handed — a foldable with three screens, or a
+     * launcher listing every workspace it has.
+     */
+    @Test
+    fun `a host reporting more cells than the map can hold still builds`() {
+        val many = PAIRS.flatMap { listOf(it.first, it.second) } +
+            listOf(SizeF(500f, 500f), SizeF(240f, 300f), SizeF(180f, 420f))
+
+        assertTrue(
+            "the largest of ${many.size} reported cells came back at the floor",
+            valueSizeSp(many, TABLET_PORTRAIT) > VALUE_FLOOR_SP,
+        )
     }
 
     /**
@@ -162,10 +233,40 @@ class WidgetOrientationTest {
     private fun label(size: SizeF): String = "${size.width}x${size.height}"
 
     /**
+     * How much of [cell]'s height the rows occupy when [cells] are reported, as a
+     * fraction — the shape of the complaint rather than a size in it, because a number
+     * drawn at half the size it could be is a number in the middle of an empty widget.
+     */
+    private fun fillOf(cells: List<SizeF>, cell: SizeF, timer: Timer): Float {
+        val root = render(cells, cell, timer)
+        val used = (0 until root.childCount)
+            .map { root.getChildAt(it) }
+            .filter { it.visibility == View.VISIBLE }
+            .sumOf { it.height } + root.paddingTop + root.paddingBottom
+        return used / (cell.height * context.resources.displayMetrics.density)
+    }
+
+    /**
      * The size the value is drawn at, in sp, when [cells] are reported and the launcher
      * then draws the widget in [cell].
      */
-    private fun valueSizeSp(cells: List<SizeF>, cell: SizeF): Float {
+    private fun valueSizeSp(cells: List<SizeF>, cell: SizeF, timer: Timer = this.timer): Float {
+        val root = render(cells, cell, timer)
+        val ticker = root.findViewById<TextView>(R.id.widget_ticker)
+        val value = if (ticker.visibility == View.VISIBLE) {
+            ticker
+        } else {
+            root.findViewById(R.id.widget_value)
+        }
+        return value.textSize / context.resources.displayMetrics.scaledDensity
+    }
+
+    /**
+     * The widget a launcher reporting [cells] would draw in [cell], laid out at exactly
+     * that size — the variant chosen through the platform's own selection, so nothing
+     * here can agree with a wrong expectation about which one that is.
+     */
+    private fun render(cells: List<SizeF>, cell: SizeF, timer: Timer = this.timer): LinearLayout {
         val views = WidgetRenderer.build(
             context = context,
             appWidgetId = 1,
@@ -186,14 +287,7 @@ class WidgetOrientationTest {
             View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
         )
         root.layout(0, 0, widthPx, heightPx)
-
-        val ticker = root.findViewById<TextView>(R.id.widget_ticker)
-        val value = if (ticker.visibility == View.VISIBLE) {
-            ticker
-        } else {
-            root.findViewById(R.id.widget_value)
-        }
-        return value.textSize / context.resources.displayMetrics.scaledDensity
+        return root as LinearLayout
     }
 
     private companion object {
@@ -211,17 +305,33 @@ class WidgetOrientationTest {
          * And the pair for a widget dragged out to the whole screen, where the two are
          * furthest apart. A 3x1 is small enough that the two cells select different
          * variants on width alone; a full-screen one is bigger than every breakpoint in
-         * both orientations, so nothing but a rung shaped like it keeps the two apart —
-         * and lumped together they are sized for the corner of the two, which is 325 wide
-         * and 250 tall and is neither of them.
+         * both orientations, so both are nearest to whichever is largest — and lumped
+         * together they are sized for the corner of the two, which is 325 wide and 250
+         * tall and is neither of them.
          */
         val BIG_PORTRAIT = SizeF(325f, 549f)
         val BIG_LANDSCAPE = SizeF(700f, 250f)
 
-        val PAIRS = listOf(PORTRAIT to LANDSCAPE, BIG_PORTRAIT to BIG_LANDSCAPE)
+        /**
+         * The same widget on a tablet, and the pair a ladder cannot separate however it
+         * is shaped. A phone's two orientations differ enough that rungs of the right
+         * shape can catch one each; a tablet's are both wide and both tall, so they land
+         * on the same rung whatever rungs there are, and only a rung cut to the cell
+         * itself keeps them apart. Sized for the corner of the two — 600 by 520 — a
+         * widget the height of the screen draws its countdown at two thirds the size it
+         * has room for and leaves the bottom half of itself empty.
+         */
+        val TABLET_PORTRAIT = SizeF(600f, 800f)
+        val TABLET_LANDSCAPE = SizeF(900f, 520f)
 
-        /** `widget_label_text_min`, in sp. */
-        const val LABEL_FLOOR_SP = 12f
+        val PAIRS = listOf(
+            PORTRAIT to LANDSCAPE,
+            BIG_PORTRAIT to BIG_LANDSCAPE,
+            TABLET_PORTRAIT to TABLET_LANDSCAPE,
+        )
+
+        /** `widget_value_text_min`, in sp: the size a value that fits nowhere comes back at. */
+        const val VALUE_FLOOR_SP = 11f
 
         /**
          * Cells to check the selection rule against: every breakpoint exactly, a little

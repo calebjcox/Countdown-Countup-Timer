@@ -38,12 +38,12 @@ import kotlin.math.floor
  * string rides along in the chronometer's format string, so the whole value stays
  * one auto-sizing line instead of two views that have to be kept aligned.
  *
- * Size handling is declarative. Rather than reacting to resize callbacks, every
- * variant in [BREAKPOINTS] is handed to the platform at once and the launcher picks
- * whichever best fits the cell it was given. What that cannot answer is how large to
- * draw the text *inside* a variant, because a breakpoint is only the smallest cell that
- * selects it — see [metricsFor], and [build]'s `cells` for where the real one comes
- * from.
+ * Size handling is declarative. Rather than reacting to resize callbacks, every variant
+ * is handed to the platform at once — the [BREAKPOINTS] ladder and a rung for each cell
+ * the host reported, see [variantsFor] — and the launcher picks whichever best fits the
+ * cell it was given. What that cannot answer is how large to draw the text *inside* a
+ * variant, because a breakpoint is only the smallest cell that selects it — see
+ * [metricsFor], and [build]'s `cells` for where the real one comes from.
  *
  * Declarative all the way down, which means *per variant*. A launcher reports every
  * cell it might draw this widget in — portrait and landscape both — and then switches
@@ -116,17 +116,16 @@ object WidgetRenderer {
      * entry is what lets a tall cell spend its extra height on a bigger number rather
      * than on margin.
      *
-     * The five above 130x110 exist for that reason alone, and they are the ladder's real
-     * work at the large end. Every cell a phone can hand out that is bigger than the
-     * whole of this widget's layout fits every entry, so the nearest one wins — and with
-     * nothing above 130x110, a full-screen portrait cell and a full-screen landscape cell
-     * are both nearest to it. One entry has to serve both, [sizingFor] takes the smaller
-     * of them on each axis, and a widget five rows tall gets sized for the height of a
-     * landscape row it is not being drawn in. Rungs that differ in *shape* rather than
-     * only in size are what separate them: 300x130 and 300x220 catch a wide, short
-     * landscape cell, 300x320 and 300x450 a tall portrait one, and 130x220 a
-     * one-column-wide tower. None of them can be selected by a cell smaller than itself,
-     * so nothing below 130x110 moves.
+     * The five above 130x110 are what a large cell falls back on before the host has
+     * reported anything, which is the only time a cell that big is sized by the ladder at
+     * all — see [variantsFor], which gives a reported cell a rung of its own. Every cell
+     * bigger than the whole of this widget's layout fits every entry, so the nearest one
+     * wins, and with nothing above 130x110 a widget the height of the screen would be
+     * sized for a rung a fifth of its height until its first redraw. They differ in
+     * *shape* rather than only in size, because that is what the cells they stand in for
+     * do: 300x130 and 300x220 for a wide, short landscape cell, 300x320 and 300x450 for a
+     * tall portrait one, 130x220 for a one-column tower. None of them can be selected by
+     * a cell smaller than itself, so nothing below 130x110 moves.
      */
     private val BREAKPOINTS = listOf(
         SizeF(56f, 40f) to Variant(Detail.VALUE, Density.COMPACT),
@@ -165,10 +164,11 @@ object WidgetRenderer {
         val display = DurationMath.compute(nowMillis, zone, timer.spec)
         // Sampled once so every variant agrees to the millisecond.
         val elapsedRealtime = SystemClock.elapsedRealtime()
-        val sizing = sizingFor(cells)
+        val variants = variantsFor(cells)
+        val sizing = sizingFor(cells, variants.keys)
 
         return RemoteViews(
-            BREAKPOINTS.associate { (size, variant) ->
+            variants.entries.associate { (size, variant) ->
                 size to render(
                     context, appWidgetId, timer, display,
                     size, sizing[size], variant, elapsedRealtime,
@@ -178,12 +178,56 @@ object WidgetRenderer {
     }
 
     /**
-     * Which reported cell each variant should size its text for, keyed by breakpoint.
+     * The sizes the launcher chooses between and the variant filed under each: the
+     * [BREAKPOINTS] ladder, plus a rung of its own for every cell the host reported.
+     *
+     * A rung keyed at exactly a reported cell is one that cell is certain to select —
+     * nothing can be nearer than a squared distance of zero — and certain to be the only
+     * one selecting it. That is the whole of what it buys, and what it buys is the other
+     * half of [sizingFor]: two cells that land on the same rung have to share the text
+     * size it was built with, which is the smaller of them on each axis, so a widget
+     * drawn the height of the screen in portrait is sized for the height of the landscape
+     * row it is *not* being drawn in. The ladder alone cannot keep them apart, because
+     * every cell larger than the whole layout fits every rung and the nearest one wins:
+     * a full-screen portrait cell and a full-screen landscape cell are both nearest to
+     * whatever the largest rung happens to be, and on a tablet, where the two
+     * orientations are nearer the same size than a phone's, they land together whatever
+     * shapes the ladder carries. A cell keyed as itself cannot land with anything.
+     *
+     * The rung carries the variant the cell would have selected from the ladder, so which
+     * rows are drawn is the ladder's decision as before and only the sizing is exact.
+     *
+     * Largest first, because the rungs that matter are the ones a cap could cost: the
+     * cells that collide are the large ones, and the largest has the most height to lose
+     * by being sized for another.
+     */
+    private fun variantsFor(cells: List<SizeF>): Map<SizeF, Variant> {
+        val ladder = BREAKPOINTS.toMap()
+        val reported = cells
+            .filter { it.width > 0f && it.height > 0f }
+            .distinct()
+            .filterNot { it in ladder }
+            .sortedByDescending { it.width * it.height }
+            .take(MAX_VARIANTS - ladder.size)
+        return ladder + reported.associateWith { ladder.getValue(bestFitBreakpoint(it)) }
+    }
+
+    /**
+     * How many entries a size map may hold, which is the platform's number rather than
+     * ours: `RemoteViews(Map)` throws above sixteen. It is what limits how many cells
+     * [variantsFor] can key exactly — [BREAKPOINTS] takes thirteen of it — and a host
+     * reporting more than the rest leaves the remainder to [sizingFor]'s last resort.
+     */
+    private const val MAX_VARIANTS = 16
+
+    /**
+     * Which reported cell each variant should size its text for, keyed by the size it is
+     * filed under.
      *
      * A variant is only ever drawn in a cell the launcher picked it for, so the cell to
      * measure against is the one whose selection lands on that variant — which is a
-     * question only [bestFitBreakpoint] can answer, because the platform's rule is not
-     * "the largest that fits".
+     * question only [bestFit] can answer, because the platform's rule is not "the largest
+     * that fits".
      *
      * This is the whole fix for text that comes out tiny after the phone has been in
      * landscape. The options bundle reports both orientations at once and does not
@@ -198,17 +242,21 @@ object WidgetRenderer {
      * Two cells can land on the same variant. Then it takes the smaller of them on each
      * axis, because the text has to fit whichever one the launcher hands it — and the
      * corner of a tall cell and a wide one is a cell neither of them is, so a widget
-     * sized there is smaller than both. That is a last resort rather than a design:
-     * keeping the two apart is [BREAKPOINTS]' job, and the rungs above 130x110 are there
-     * to do it.
+     * sized there is smaller than both. That is a last resort rather than a design, and
+     * it is reached only by a host reporting more cells than [variantsFor] has room to
+     * key: every cell that gets a rung of its own is the only cell that can select it.
+     *
+     * @param entries the sizes the launcher is choosing between, which is [variantsFor]'s
+     *   answer rather than [BREAKPOINTS] — a cell has to be matched against the map it
+     *   will really be selected from.
      */
-    private fun sizingFor(cells: List<SizeF>): Map<SizeF, SizeF> {
+    private fun sizingFor(cells: List<SizeF>, entries: Collection<SizeF>): Map<SizeF, SizeF> {
         val sizing = mutableMapOf<SizeF, SizeF>()
         for (cell in cells) {
             if (cell.width <= 0f || cell.height <= 0f) continue
-            val breakpoint = bestFitBreakpoint(cell)
-            val known = sizing[breakpoint]
-            sizing[breakpoint] = if (known == null) {
+            val entry = bestFit(cell, entries)
+            val known = sizing[entry]
+            sizing[entry] = if (known == null) {
                 cell
             } else {
                 SizeF(minOf(known.width, cell.width), minOf(known.height, cell.height))
@@ -235,7 +283,14 @@ object WidgetRenderer {
         }
 
     /**
-     * The breakpoint whose variant a launcher will draw in a cell of this size.
+     * The ladder rung whose variant a launcher would draw in a cell of this size — which
+     * is what [variantsFor] asks to decide what a rung of the cell's own should carry,
+     * and what the selection rule is pinned against.
+     */
+    internal fun bestFitBreakpoint(cell: SizeF): SizeF = bestFit(cell, breakpointSizes)
+
+    /**
+     * The entry of [entries] a launcher will draw in a cell of this size.
      *
      * A transcription of `RemoteViews.findBestFitLayout`, down to the ceiling in the fit
      * test and the strict `<` that leaves the earliest of equally distant candidates
@@ -244,10 +299,10 @@ object WidgetRenderer {
      * reflected into because this runs in the app, and pinned against the platform's own
      * selection by `WidgetOrientationTest` so the copy cannot drift from the original.
      */
-    internal fun bestFitBreakpoint(cell: SizeF): SizeF {
+    private fun bestFit(cell: SizeF, entries: Collection<SizeF>): SizeF {
         var best: SizeF? = null
         var bestSquareDistance = Float.MAX_VALUE
-        for ((size, _) in BREAKPOINTS) {
+        for (size in entries) {
             if (!fitsIn(size, cell)) continue
             val squareDistance = squareDistance(size, cell)
             if (best == null || squareDistance < bestSquareDistance) {
@@ -255,7 +310,7 @@ object WidgetRenderer {
                 bestSquareDistance = squareDistance
             }
         }
-        return best ?: breakpointSizes.minBy { it.width * it.height }
+        return best ?: entries.minBy { it.width * it.height }
     }
 
     /** The breakpoint sizes, in declaration order. Shared with the tests that pin them. */
