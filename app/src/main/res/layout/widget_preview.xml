@@ -6,8 +6,7 @@
   Deliberately built to the *compact* metrics rather than the layouts' roomy defaults,
   because the picker frames this at the advertised 2x1 and that is the band a 2x1 cell
   resolves to. A preview drawn at any other density is a promise the dropped widget
-  does not keep — which is exactly what it used to be, showing three roomy rows at a
-  size that then rendered as a bare number.
+  does not keep.
 
   A background even though timers default to showBackground = false: the picker draws
   previews on its own surface, not on the wallpaper, so the transparent variant has
