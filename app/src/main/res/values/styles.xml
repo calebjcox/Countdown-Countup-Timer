@@ -22,13 +22,13 @@
       bounded box to work in; tabular figures stop the text jittering as a ticking
       clock rolls through digits of different widths.
 
-      Fixed rather than weighted, which is what it used to be. A weighted slot absorbs
-      every pixel the labels leave, and the value can only grow to 44sp — so on any
-      cell taller than the rows need, the surplus became empty space *inside* the
-      value's box, splitting the name off the top of the number and the date off the
-      bottom. Bounding the box instead leaves the surplus outside the rows, where the
-      root's centre gravity turns it into margin and the three lines stay together.
-      WidgetRenderer sets the real height per variant; see metricsFor.
+      Fixed, never weighted. A weighted slot absorbs every pixel the labels leave, and
+      the value can only grow to 44sp — so on any cell taller than the rows need, the
+      surplus lands as empty space *inside* the value's box, splitting the name off the
+      top of the number and the date off the bottom. A bounded box leaves the surplus
+      outside the rows, where the root's centre gravity turns it into margin and the
+      three lines stay together. WidgetRenderer sets the real height per variant; see
+      metricsFor.
     -->
     <style name="WidgetValue">
         <item name="android:layout_width">match_parent</item>
