@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.SizeF
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.RemoteViews
 import com.calebjcox.countdownwidgets.R
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.TimeField
@@ -140,6 +141,65 @@ class WidgetVariantSizeTest {
         assertRows(90f, 30f, name = false, footer = false)
     }
 
+    /**
+     * The same answers as the cases above, stated as the rule they come from and checked
+     * a dp either side of every threshold there is.
+     *
+     * The cases above are what the widget does on real cells; this is *why*, and it is the
+     * assertion that fails if the rows ever stop being a function of the box. What decides
+     * them is `WidgetRenderer.variantFor` — width and height against four sizes — but the
+     * launcher reaches it through nearest-fitting-neighbour over the map's keys, which is
+     * a different test entirely. The two agree because the keys are the thresholds and the
+     * thresholds nest; nothing here knows that, which is the point of checking it from
+     * outside at sizes chosen to straddle each one.
+     *
+     * The rule is written out rather than read from the renderer, because a test that
+     * asked the renderer what it thinks would agree with it however wrong it was. Editing
+     * a threshold means editing this line, which is the review the numbers deserve.
+     */
+    @Test
+    fun `the rows and the padding follow the thresholds and nothing else`() {
+        val views = build(timer)
+        for (width in PROBED_WIDTHS) {
+            for (height in PROBED_HEIGHTS) {
+                val view = select(views, width, height)
+                val at = "at ${width}x$height"
+
+                assertEquals(
+                    "name visibility $at",
+                    width >= 92f && height >= 50f,
+                    view.findViewById<View>(R.id.widget_name).visibility == View.VISIBLE,
+                )
+                assertEquals(
+                    "footer visibility $at",
+                    width >= 110f && height >= 68f,
+                    view.findViewById<View>(R.id.widget_footer).visibility == View.VISIBLE,
+                )
+                val roomy = width >= 130f && height >= 110f
+                assertEquals(
+                    "padding $at",
+                    context.resources.getDimensionPixelSize(
+                        if (roomy) R.dimen.widget_padding else R.dimen.widget_padding_compact,
+                    ),
+                    view.paddingTop,
+                )
+            }
+        }
+    }
+
+    private fun build(timer: Timer): RemoteViews = WidgetRenderer.build(
+        context = context,
+        appWidgetId = 1,
+        timer = timer,
+        nowMillis = nowMillis,
+        zone = ZoneId.of("America/Denver"),
+    )
+
+    /** The variant a launcher would draw this box in, inflated. */
+    private fun select(views: RemoteViews, widthDp: Float, heightDp: Float): View =
+        VariantSelection.forSize(views, context, SizeF(widthDp, heightDp))
+            .apply(context, FrameLayout(context))
+
     private fun assertRows(
         widthDp: Float,
         heightDp: Float,
@@ -147,16 +207,7 @@ class WidgetVariantSizeTest {
         footer: Boolean,
         timer: Timer = this.timer,
     ) {
-        val views = WidgetRenderer.build(
-            context = context,
-            appWidgetId = 1,
-            timer = timer,
-            nowMillis = nowMillis,
-            zone = ZoneId.of("America/Denver"),
-        )
-        val size = SizeF(widthDp, heightDp)
-        val view = VariantSelection.forSize(views, context, size)
-            .apply(context, FrameLayout(context))
+        val view = select(build(timer), widthDp, heightDp)
 
         assertEquals(
             "name visibility at ${widthDp}x$heightDp",
@@ -174,6 +225,24 @@ class WidgetVariantSizeTest {
             "value visibility at ${widthDp}x$heightDp",
             View.VISIBLE,
             view.findViewById<View>(R.id.widget_value).visibility,
+        )
+    }
+
+    private companion object {
+        /**
+         * A dp either side of each threshold's width, plus the widths real cells come in
+         * at and one below anything the provider allows. The boundaries are where a rule
+         * and a nearest-neighbour lookup part company, so they are most of the list.
+         */
+        val PROBED_WIDTHS = listOf(
+            30f, 39f, 40f, 41f, 64f, 91f, 92f, 93f, 105f, 109f, 110f, 111f,
+            129f, 130f, 131f, 216f, 344f, 600f,
+        )
+
+        /** The same for heights. */
+        val PROBED_HEIGHTS = listOf(
+            30f, 39f, 40f, 41f, 45f, 49f, 50f, 51f, 67f, 68f, 69f, 76f, 84f,
+            109f, 110f, 111f, 152f, 300f,
         )
     }
 }

@@ -39,11 +39,10 @@ import kotlin.math.floor
  * one auto-sizing line instead of two views that have to be kept aligned.
  *
  * Size handling is declarative. Rather than reacting to resize callbacks, every variant
- * is handed to the platform at once — the [BREAKPOINTS] ladder and a rung for each cell
- * the host reported, see [variantsFor] — and the launcher picks whichever best fits the
- * cell it was given. What that cannot answer is how large to draw the text *inside* a
- * variant, because a breakpoint is only the smallest cell that selects it — see
- * [metricsFor], and [build]'s `cells` for where the real one comes from.
+ * is handed to the platform at once — see [variantsFor] — and the launcher picks
+ * whichever best fits the cell it was given. What that cannot answer is how large to draw
+ * the text *inside* a variant, because a key is only the smallest cell that selects it —
+ * see [metricsFor], and [build]'s `cells` for where the real one comes from.
  *
  * Declarative all the way down, which means *per variant*. A launcher reports every
  * cell it might draw this widget in — portrait and landscape both — and then switches
@@ -62,7 +61,7 @@ object WidgetRenderer {
      * answer different questions: whether there is room for a row at all, and how much
      * of the room left over should go to breathing space rather than to the value.
      *
-     * Only the padding. A label size per band would make the band the answer to a
+     * Only the padding. A label size chosen here would make [variantFor] the answer to a
      * question it cannot see — how large a caption has to be to read — so [metricsFor]
      * measures that against the real cell instead.
      */
@@ -74,74 +73,77 @@ object WidgetRenderer {
     private data class Variant(val detail: Detail, val density: Density)
 
     /**
-     * The cell sizes each variant is built for, in dp of *content box* — what
-     * `AppWidgetHostView` measures after the launcher's own inset, not the nominal
-     * cell.
+     * The smallest content box each row needs to be worth drawing, in dp — what
+     * `AppWidgetHostView` measures after the launcher's own inset, not the nominal cell.
      *
-     * Three things decide these numbers, and each of them is easy to get wrong.
-     *
-     * The platform does not pick the largest variant that fits. `findBestFitLayout`
-     * takes every entry that fits inside the cell and keeps the one nearest it by
-     * squared distance, so a change here has to be checked against real sizes rather
-     * than reasoned about as a ladder. The fit table lives in `WidgetVariantSizeTest`,
-     * which asserts it against the platform's own selection code.
+     * These are the widget's whole spec for what it shows at a given size, and every one
+     * of them is a fact about type rather than about anyone's grid. That is the point:
+     * a launcher's cells move when the OS changes, when the user picks a different grid,
+     * when the display size or font scale changes — and none of that changes how much
+     * room a caption needs to read.
      *
      * The heights are derived, not guessed. A label costs its line height — about 16dp
      * at the 12sp floor — the root costs twice its padding, and whatever remains is the
-     * box the value's own search works in. 68dp of cell leaves 24dp for the value once
-     * a name and a footer are paid for: not much, but a one-row cell
-     * that says what it is counting is worth more than a larger number that does not.
-     * A footer height above what a one-row cell offers makes the target date
-     * unreachable at every 1-row size — see issue #11 and the sizes in `DeviceSpec`.
+     * box the value's own search works in. [WITH_DATE]'s 68dp leaves 24dp for the value
+     * once a name and a footer are paid for: not much, but a one-row cell that says what
+     * it is counting is worth more than a larger number that does not. A height above
+     * what a one-row cell offers makes the target date unreachable at every 1-row size —
+     * see issue #11 and the sizes in `DeviceSpec`.
      *
-     * The widths say how much room a row needs to be worth drawing, not what the
-     * provider's `minWidth` happens to be. The provider resizes down to a single cell,
-     * so 110dp is not the narrowest cell this can be handed and a width tracking it
-     * would only refuse to answer for the sizes below.
+     * The widths are what a caption needs. [WITH_NAME]'s 92dp is where a name reads: it
+     * leaves 80dp inside the compact padding, which is a dozen characters at the 12sp
+     * floor. The date needs 110dp, being the longest line the widget draws — "until
+     * Sep 9, 2026" is most of 100dp before it is worth printing at all. Below 92 there is
+     * only the number, which is the one thing a cell that narrow can say legibly. On a
+     * tablet none of this bites: a single cell there is 105 to 130dp, wider than a
+     * phone's 2x1, so a 1x1 keeps its name and often its date.
      *
-     * A caption is the row width decides. 92dp is where a name reads: it leaves 80dp
-     * inside the compact padding, which is a dozen characters at the 12sp floor. The date
-     * needs 110dp, being the longest line the widget draws — "until Sep 9, 2026" is most
-     * of 100dp before it is worth printing at all. Below 92 there is only the number,
-     * which is the one thing a cell that narrow can say legibly. On a tablet none of this
-     * bites: a single cell there is 105 to 130dp, wider than a phone's 2x1, so a 1x1
-     * keeps its name and often its date.
-     *
-     * `ROOMY` is the exception to reading the widths as row requirements: a one-cell-wide
+     * [ROOMY] is the exception to reading these as row requirements: a one-cell-wide
      * column has the height for three rows but not the width to spend on padding, so it
      * stays compact and keeps the room for the text.
      *
-     * Several entries carry the same variant at different sizes. That is not redundancy:
-     * each one also sizes the rows to the cell it is for — see [metricsFor] — so the
-     * entry is what lets a tall cell spend its extra height on a bigger number rather
-     * than on margin.
+     * [SMALLEST] is not a threshold but the floor under them — the provider's own
+     * `minResizeWidth`/`minResizeHeight`, so the smallest box a host will hand this
+     * widget. It carries no row of its own and exists so there is always one entry small
+     * enough to fit whatever is drawn.
      *
-     * The five above 130x110 are what a large cell falls back on before the host has
-     * reported anything, which is the only time a cell that big is sized by the ladder at
-     * all — see [variantsFor], which gives a reported cell a rung of its own. Every cell
-     * bigger than the whole of this widget's layout fits every entry, so the nearest one
-     * wins, and with nothing above 130x110 a widget the height of the screen would be
-     * sized for a rung a fifth of its height until its first redraw. They differ in
-     * *shape* rather than only in size, because that is what the cells they stand in for
-     * do: 300x130 and 300x220 for a wide, short landscape cell, 300x320 and 300x450 for a
-     * tall portrait one, 130x220 for a one-column tower. None of them can be selected by
-     * a cell smaller than itself, so nothing below 130x110 moves.
+     * **They are nested, and [variantsFor] depends on it.** Each is at least the one
+     * before it on both axes, which is what lets the same four sizes serve as the map's
+     * keys and still agree with [variantFor] exactly — see [variantsFor] for why.
      */
-    private val BREAKPOINTS = listOf(
-        SizeF(56f, 40f) to Variant(Detail.VALUE, Density.COMPACT),
-        SizeF(56f, 72f) to Variant(Detail.VALUE, Density.COMPACT),
-        SizeF(92f, 50f) to Variant(Detail.VALUE_AND_NAME, Density.COMPACT),
-        SizeF(110f, 40f) to Variant(Detail.VALUE, Density.COMPACT),
-        SizeF(110f, 50f) to Variant(Detail.VALUE_AND_NAME, Density.COMPACT),
-        SizeF(110f, 68f) to Variant(Detail.EVERYTHING, Density.COMPACT),
-        SizeF(110f, 86f) to Variant(Detail.EVERYTHING, Density.COMPACT),
-        SizeF(130f, 110f) to Variant(Detail.EVERYTHING, Density.ROOMY),
-        SizeF(130f, 220f) to Variant(Detail.EVERYTHING, Density.ROOMY),
-        SizeF(300f, 130f) to Variant(Detail.EVERYTHING, Density.ROOMY),
-        SizeF(300f, 220f) to Variant(Detail.EVERYTHING, Density.ROOMY),
-        SizeF(300f, 320f) to Variant(Detail.EVERYTHING, Density.ROOMY),
-        SizeF(300f, 450f) to Variant(Detail.EVERYTHING, Density.ROOMY),
+    private val SMALLEST = SizeF(40f, 40f)
+    private val WITH_NAME = SizeF(92f, 50f)
+    private val WITH_DATE = SizeF(110f, 68f)
+    private val ROOMY = SizeF(130f, 110f)
+
+    /** The four in order, smallest first, which is the order the nesting is stated in. */
+    private val THRESHOLDS = listOf(SMALLEST, WITH_NAME, WITH_DATE, ROOMY)
+
+    /**
+     * What a box of this size draws: the rows it has room for, packed as tightly as it
+     * needs to be.
+     *
+     * A function of the box rather than a table of cells to look it up in. The difference
+     * is what happens when a grid changes underneath the app: a table has to be
+     * recalibrated against the new cells, and until it is, a cell landing between two of
+     * its entries gets whichever is nearest rather than the one it matches. Asked
+     * directly, the question has the same answer on every device and every launcher there
+     * will ever be.
+     *
+     * [covers] is [fitsIn], the transcription of the platform's own fit test, so this and
+     * the selection that has to agree with it round the same way rather than nearly.
+     */
+    private fun variantFor(box: SizeF): Variant = Variant(
+        detail = when {
+            covers(box, WITH_DATE) -> Detail.EVERYTHING
+            covers(box, WITH_NAME) -> Detail.VALUE_AND_NAME
+            else -> Detail.VALUE
+        },
+        density = if (covers(box, ROOMY)) Density.ROOMY else Density.COMPACT,
     )
+
+    /** Whether [box] has room for something that needs [need]. */
+    private fun covers(box: SizeF, need: SizeF): Boolean = fitsIn(need, box)
 
     /**
      * @param cells every content box the launcher might draw this widget in, when that
@@ -178,45 +180,84 @@ object WidgetRenderer {
     }
 
     /**
-     * The sizes the launcher chooses between and the variant filed under each: the
-     * [BREAKPOINTS] ladder, plus a rung of its own for every cell the host reported.
+     * The sizes the launcher chooses between, and what each of them draws.
      *
-     * A rung keyed at exactly a reported cell is one that cell is certain to select —
-     * nothing can be nearer than a squared distance of zero — and certain to be the only
-     * one selecting it. That is the whole of what it buys, and what it buys is the other
-     * half of [sizingFor]: two cells that land on the same rung have to share the text
-     * size it was built with, which is the smaller of them on each axis, so a widget
-     * drawn the height of the screen in portrait is sized for the height of the landscape
-     * row it is *not* being drawn in. The ladder alone cannot keep them apart, because
-     * every cell larger than the whole layout fits every rung and the nearest one wins:
-     * a full-screen portrait cell and a full-screen landscape cell are both nearest to
-     * whatever the largest rung happens to be, and on a tablet, where the two
-     * orientations are nearer the same size than a phone's, they land together whatever
-     * shapes the ladder carries. A cell keyed as itself cannot land with anything.
+     * Two kinds of key, answering the two questions a size map is asked.
      *
-     * The rung carries the variant the cell would have selected from the ladder, so which
-     * rows are drawn is the ladder's decision as before and only the sizing is exact.
+     * **[THRESHOLDS], so the rows are right.** The launcher picks by nearest fitting
+     * neighbour, which is not the test [variantFor] applies, so a map of arbitrary sizes
+     * would only approximate it. A map keyed on the thresholds themselves reproduces it
+     * exactly, and the nesting is the whole of the argument: "the entry at threshold *i*
+     * fits inside this box" *is* [variantFor]'s test for region *i*, so the entries that
+     * fit a box are a prefix of the chain and the last of them is the box's own region.
+     * And of two nested entries that both fit, the larger is nearer on both axes and so
+     * never further by squared distance — the launcher lands on the last one, which is
+     * the region the box belongs to. That holds for every box, on any grid, with nothing
+     * calibrated.
      *
-     * Largest first, because the rungs that matter are the ones a cap could cost: the
-     * cells that collide are the large ones, and the largest has the most height to lose
-     * by being sized for another.
+     * **The reported cells, so the text is right.** A key at exactly a cell is one that
+     * cell is certain to select — nothing is nearer than a squared distance of zero — and
+     * certain to be alone in selecting, which is what [sizingFor] needs: two cells landing
+     * on one entry have to share the text size it was built with, and that is the smaller
+     * of them on each axis, so a widget drawn the height of the screen ends up sized for
+     * the landscape row it is *not* being drawn in. Thresholds alone cannot keep them
+     * apart — every cell bigger than the whole layout fits every threshold, so both
+     * orientations land on [ROOMY].
+     *
+     * Then [LARGE], for the sizes a host draws without having reported them.
+     *
+     * **The rule for any key that is not a threshold: it goes in at or above [ROOMY], or
+     * it is a cell the host reported.** A key below [ROOMY] can sit nearer to a box than
+     * the threshold of that box's own region, and would then take rows away from a cell
+     * with the room to draw them. At or above [ROOMY] every key carries the topmost
+     * variant, and anything that can select it is at least as large and so carries it too,
+     * which is why every entry of [LARGE] clears it. A reported cell is the deliberate
+     * exception: a box
+     * the host draws *without* reporting, sitting just above a threshold the reported cell
+     * is just below, takes the reported cell's key and so its rows. That is the wrong
+     * answer in the conservative direction — fewer rows, never more — and it lasts until
+     * the host reports the box it is really drawing.
+     *
+     * Thresholds first so the cap can only ever drop coverage, and reported cells before
+     * coverage because they are the ones that get drawn.
      */
     private fun variantsFor(cells: List<SizeF>): Map<SizeF, Variant> {
-        val ladder = BREAKPOINTS.toMap()
         val reported = cells
             .filter { it.width > 0f && it.height > 0f }
             .distinct()
-            .filterNot { it in ladder }
             .sortedByDescending { it.width * it.height }
-            .take(MAX_VARIANTS - ladder.size)
-        return ladder + reported.associateWith { ladder.getValue(bestFitBreakpoint(it)) }
+        return (THRESHOLDS + reported + LARGE)
+            .distinct()
+            .take(MAX_VARIANTS)
+            .associateWith { variantFor(it) }
     }
 
     /**
+     * Sizes to cover the gap between the largest threshold and a whole screen, so a box
+     * the host draws without having reported it has something near its own size to select
+     * rather than [ROOMY] and a number sized for 130x110.
+     *
+     * Reached in two situations, both brief: before the first layout has written the
+     * widget's options, and part-way through a resize drag, where the host redraws at
+     * sizes it only reports at the end. Shapes rather than a ladder of areas, because the
+     * boxes they stand in for differ in shape: a wide, short landscape cell, a tall
+     * portrait one, a one-column tower. Every one of them clears [ROOMY], which is what
+     * keeps them from taking rows off a cell that has room for them.
+     */
+    private val LARGE = listOf(
+        SizeF(130f, 220f),
+        SizeF(300f, 130f),
+        SizeF(300f, 220f),
+        SizeF(300f, 320f),
+        SizeF(300f, 450f),
+    )
+
+    /**
      * How many entries a size map may hold, which is the platform's number rather than
-     * ours: `RemoteViews(Map)` throws above sixteen. It is what limits how many cells
-     * [variantsFor] can key exactly — [BREAKPOINTS] takes thirteen of it — and a host
-     * reporting more than the rest leaves the remainder to [sizingFor]'s last resort.
+     * ours: `RemoteViews(Map)` throws above sixteen. [THRESHOLDS] takes four of it and
+     * the cells a host reports are usually two, so the cap bites only on a host reporting
+     * an unusual number of screens — and then it costs coverage, which is the entry kind
+     * nothing is drawn from.
      */
     private const val MAX_VARIANTS = 16
 
@@ -247,8 +288,7 @@ object WidgetRenderer {
      * key: every cell that gets a rung of its own is the only cell that can select it.
      *
      * @param entries the sizes the launcher is choosing between, which is [variantsFor]'s
-     *   answer rather than [BREAKPOINTS] — a cell has to be matched against the map it
-     *   will really be selected from.
+     *   answer — a cell has to be matched against the map it will really be selected from.
      */
     private fun sizingFor(cells: List<SizeF>, entries: Collection<SizeF>): Map<SizeF, SizeF> {
         val sizing = mutableMapOf<SizeF, SizeF>()
@@ -283,13 +323,6 @@ object WidgetRenderer {
         }
 
     /**
-     * The ladder rung whose variant a launcher would draw in a cell of this size — which
-     * is what [variantsFor] asks to decide what a rung of the cell's own should carry,
-     * and what the selection rule is pinned against.
-     */
-    internal fun bestFitBreakpoint(cell: SizeF): SizeF = bestFit(cell, breakpointSizes)
-
-    /**
      * The entry of [entries] a launcher will draw in a cell of this size.
      *
      * A transcription of `RemoteViews.findBestFitLayout`, down to the ceiling in the fit
@@ -299,7 +332,7 @@ object WidgetRenderer {
      * reflected into because this runs in the app, and pinned against the platform's own
      * selection by `WidgetOrientationTest` so the copy cannot drift from the original.
      */
-    private fun bestFit(cell: SizeF, entries: Collection<SizeF>): SizeF {
+    internal fun bestFit(cell: SizeF, entries: Collection<SizeF>): SizeF {
         var best: SizeF? = null
         var bestSquareDistance = Float.MAX_VALUE
         for (size in entries) {
@@ -313,8 +346,13 @@ object WidgetRenderer {
         return best ?: entries.minBy { it.width * it.height }
     }
 
-    /** The breakpoint sizes, in declaration order. Shared with the tests that pin them. */
-    internal val breakpointSizes: List<SizeF> = BREAKPOINTS.map { it.first }
+    /**
+     * The sizes the launcher would be choosing between for these cells, in the order they
+     * are handed to it. For the tests that pin [bestFit] against the platform's own
+     * selection: the thing to check a transcription against is the map the widget really
+     * ships, not a list written out beside it.
+     */
+    internal fun variantSizes(cells: List<SizeF>): List<SizeF> = variantsFor(cells).keys.toList()
 
     private fun fitsIn(size: SizeF, bounds: SizeF): Boolean =
         ceil(size.width.toDouble()) <= ceil(bounds.width.toDouble()) &&
@@ -339,9 +377,9 @@ object WidgetRenderer {
         val (detail, density) = variant
         val views = RemoteViews(context.packageName, layoutFor(timer))
 
-        // Applied explicitly on every variant rather than left to the XML for the band
-        // that happens to match it, because a variant whose spacing comes from somewhere
-        // else is a variant that moves when that somewhere else does.
+        // Applied explicitly on every variant rather than left to whichever XML default
+        // happens to match it, because a variant whose spacing comes from somewhere else
+        // is a variant that moves when that somewhere else does.
         val resources = context.resources
         val padding = resources.getDimensionPixelSize(density.padding)
         views.setViewPadding(android.R.id.background, padding, padding, padding, padding)
@@ -964,10 +1002,10 @@ object WidgetRenderer {
      * Always the panel layout, whatever the eventual timer prefers: a prompt to tap
      * has to be findable, and there is no timer yet to say how it should look.
      *
-     * One size rather than the whole [BREAKPOINTS] ladder, because there is nothing to
-     * vary: one row of text, the same at every size. It is built to the smallest entry
-     * so the prompt fits a cell at the provider's own minimum, which is the one place
-     * an unconfigured widget is most likely to be sitting.
+     * One size rather than a map, because there is nothing to vary: one row of text, the
+     * same at every size. It is built to [SMALLEST] so the prompt fits a cell at the
+     * provider's own minimum, which is the one place an unconfigured widget is most likely
+     * to be sitting.
      *
      * That makes it the exception to sizing per variant, and the reason [cellDp] here is
      * [tightest] rather than a cell of its own. One object with no size map behind it is
@@ -985,7 +1023,8 @@ object WidgetRenderer {
         cellDp: SizeF?,
     ): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_timer)
-        val (size, variant) = BREAKPOINTS.first()
+        val size = SMALLEST
+        val variant = variantFor(size)
         val resources = context.resources
         val padding = resources.getDimensionPixelSize(variant.density.padding)
         views.setViewPadding(android.R.id.background, padding, padding, padding, padding)

@@ -199,34 +199,42 @@ class WidgetOrientationTest {
     }
 
     /**
-     * The renderer has to know which variant a cell will select, and it now works that
-     * out itself rather than being told one cell for all of them. The rule is the
-     * platform's, so this asserts the copy against the original — the same call
-     * `AppWidgetHostView` makes, reached through [VariantSelection].
+     * The renderer has to know which entry a cell will select — [sizingFor] sizes the text
+     * for that cell and nothing corrects it afterwards. The rule is the platform's, so
+     * this asserts the copy against the original: the same call `AppWidgetHostView` makes,
+     * reached through [VariantSelection].
      *
-     * A probe rather than the real widget: each variant is labelled with the breakpoint
-     * it was filed under, so the selection can be read straight off the inflated view
-     * instead of inferred from how the rows came out.
+     * Over the sizes the widget really ships rather than a list written out beside them,
+     * because a transcription checked against the wrong map is a transcription that agrees
+     * with nothing. Both maps a live widget has: the one for a host that has reported its
+     * cells and the one for a host that has not.
+     *
+     * A probe rather than the real widget: each entry is labelled with the size it was
+     * filed under, so the selection can be read straight off the inflated view instead of
+     * inferred from how the rows came out.
      */
     @Test
     fun `the best-fit rule matches the platform's own selection`() {
-        val probe = RemoteViews(
-            WidgetRenderer.breakpointSizes.associateWith { size ->
-                RemoteViews(context.packageName, R.layout.widget_timer).apply {
-                    setTextViewText(R.id.widget_name, label(size))
-                }
-            },
-        )
-
-        for (cell in PROBED_CELLS) {
-            val view = VariantSelection
-                .forSize(probe, context, cell)
-                .apply(context, FrameLayout(context))
-            assertEquals(
-                "at ${cell.width}x${cell.height}",
-                view.findViewById<TextView>(R.id.widget_name).text.toString(),
-                label(WidgetRenderer.bestFitBreakpoint(cell)),
+        for (reported in listOf(emptyList(), listOf(BIG_PORTRAIT, BIG_LANDSCAPE))) {
+            val sizes = WidgetRenderer.variantSizes(reported)
+            val probe = RemoteViews(
+                sizes.associateWith { size ->
+                    RemoteViews(context.packageName, R.layout.widget_timer).apply {
+                        setTextViewText(R.id.widget_name, label(size))
+                    }
+                },
             )
+
+            for (cell in PROBED_CELLS + sizes) {
+                val view = VariantSelection
+                    .forSize(probe, context, cell)
+                    .apply(context, FrameLayout(context))
+                assertEquals(
+                    "with ${reported.size} cells reported, at ${cell.width}x${cell.height}",
+                    view.findViewById<TextView>(R.id.widget_name).text.toString(),
+                    label(WidgetRenderer.bestFit(cell, sizes)),
+                )
+            }
         }
     }
 
@@ -334,17 +342,18 @@ class WidgetOrientationTest {
         const val VALUE_FLOOR_SP = 11f
 
         /**
-         * Cells to check the selection rule against: every breakpoint exactly, a little
-         * either side of each, both reported cells, and one below everything — which is
-         * the branch with no fitting candidate at all, where the platform falls back to
-         * the smallest variant rather than to none.
+         * Cells to check the selection rule against, on top of the map's own entries,
+         * which the test appends: a dp either side of each threshold, real cells from
+         * phones and both tablet classes, and one below everything — which is the branch
+         * with no fitting candidate at all, where the platform falls back to the smallest
+         * entry rather than to none.
          *
          * The narrow entries are the ones to keep an eye on. A one-cell widget is where
-         * the breakpoints sit closest together — three of them inside 54dp of width — so
-         * it is where a transcription of the platform's rule is likeliest to disagree
-         * with it, and it is the only band whose answer differs between a phone and a
-         * tablet. Hence a real 1x1 of each: 64x76 on a phone, 105x84 and 130x92 on the
-         * two tablets, which are wider than a phone's 2x1.
+         * the thresholds sit closest together — three of them inside 90dp of width — so
+         * it is where a transcription of the platform's rule is likeliest to disagree with
+         * it, and it is the only size whose answer differs between a phone and a tablet.
+         * Hence a real 1x1 of each: 64x76 on a phone, 105x84 and 130x92 on the two
+         * tablets, which are wider than a phone's 2x1.
          */
         val PROBED_CELLS = listOf(
             SizeF(90f, 30f),

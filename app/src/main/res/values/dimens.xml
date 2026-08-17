@@ -4,14 +4,14 @@
     <dimen name="widget_corner_radius">@android:dimen/system_app_widget_background_radius</dimen>
 
     <!--
-      How much room the rows get: padding per density band in WidgetRenderer, and the
-      floor a label is drawn from.
+      How much room the rows get: the two paddings WidgetRenderer chooses between, and
+      the floor a label is drawn from.
 
       The compact padding is what makes three rows fit a one-row cell: at 6dp a 68dp
       cell has 56dp inside it, which is the whole reason the "until" line is reachable
       at 2x1.
 
-      A label has a floor and no ceiling, and neither is a size per band: 12sp is the
+      A label has a floor and no ceiling, and neither is a size per cell size: 12sp is the
       smallest a label may be drawn at all, because a 2x1 has no surplus to grow into and
       is still the size a caption has to be legible at, and how far above it one goes is
       a proportion of the value beside it, measured by WidgetRenderer against the cell in
