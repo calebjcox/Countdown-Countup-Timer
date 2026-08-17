@@ -25,6 +25,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * Turns a timer into the `RemoteViews` the launcher draws.
@@ -379,29 +380,39 @@ object WidgetRenderer {
      *
      * Three decisions, in this order, and the order is the design.
      *
-     * **The labels grow first, against a single line of value.** `widget_label_text_min`
-     * is a floor, not a size: it is the smallest a caption may be drawn and still be
-     * worth drawing, and it is all a 2x1 or a 3x1 has room for. Where there is more, they
-     * grow a point at a time while three things hold — the cell has the height, the label
-     * still fits the width without ellipsizing, and it stays under [LABEL_SHARE] of the
-     * value. The last one is what keeps the number the thing you read first. Growth is
-     * checked against what the value wants on *one* line even where it is allowed more,
-     * so a label can never take a point off the number to spend on itself, and turning
-     * wrapping on cannot shrink a caption.
+     * **The value grows until the cell stops it, and the cell is the only thing that
+     * does.** The sizes in resources are a floor and a sanity bound; between them the
+     * answer comes from the width of the cell and from how much of its height is left
+     * once the labels have taken their share. That share is [LABEL_SHARE] of whatever
+     * size the value is asking for, so the three rows scale together and a widget
+     * dragged out to twice the size draws text twice as large rather than the same text
+     * in the middle of more space. Reserving a proportion rather than a fixed size is
+     * what keeps the caption from being squeezed to its floor by a number that has taken
+     * the whole cell — and reserving it from the *count* of labels rather than from
+     * their text is what keeps the value's size a property of the value, so a long name
+     * cannot take a point off the number.
      *
-     * **What is left over is the value's, and it takes only as much of it as its text
-     * fills.** That second half is why the width has to be known. A `TextView` centres
-     * its text in whatever box it is given, and the value is almost always limited by
-     * how *wide* the cell is rather than how tall — a date spelled out in full stops
-     * growing at 26sp on a phone-width cell however much height is going spare. So a box
-     * measured from height alone came out taller than the text inside it, and the
-     * surplus showed up as two bands of empty space: one between the name and the
-     * number, one between the number and the date. Sizing the box to what the text
-     * settles on leaves the surplus outside the rows, where the root's centre gravity
-     * turns it into margin around all three.
+     * **It takes only as much of the height as its text fills.** That half is why the
+     * width has to be known. A `TextView` centres its text in whatever box it is given,
+     * and the value is often limited by how *wide* the cell is rather than how tall — a
+     * date spelled out in full stops growing at 26sp on a phone-width cell however much
+     * height is going spare. A box measured from height alone is therefore taller than
+     * the text inside it, and the surplus lands as two bands of empty space: one between
+     * the name and the number, one between the number and the date. Sizing the box to
+     * what the text settles on leaves the surplus outside the rows, where the root's
+     * centre gravity turns it into margin around all three.
      *
-     * **Then [valueBox] decides how many lines to spend it on** — one, unless the timer
-     * allows more and more makes the number bigger.
+     * [valueBox] also decides how many lines to spend the height on — one, unless the
+     * timer allows more and more makes the number bigger.
+     *
+     * **Then the labels take what the value did not.** `widget_label_text_min` is a
+     * floor, not a size: it is the smallest a caption may be drawn and still be worth
+     * drawing, and it is all a 2x1 or a 3x1 has room for. Where the value came back
+     * smaller than its share of the cell — which is most of the time, because width
+     * usually stops it first — they grow a point at a time into the difference while
+     * three things hold: the height is really there, the label still fits the width
+     * without ellipsizing, and it stays under [LABEL_MAX_SHARE] of the value. The last
+     * one is what keeps the number the thing you read first.
      *
      * Every figure here is measured rather than assumed, so all of it follows the user's
      * font scale.
@@ -420,67 +431,161 @@ object WidgetRenderer {
         val scale = resources.displayMetrics.density
         val padding = resources.getDimensionPixelSize(density.padding)
         val cellHeight = ((cellDp?.height ?: breakpoint.height) * scale).toInt()
-        val widthPx = cellDp?.let { (it.width * scale).toInt() - 2 * padding }
+        val widthPx = cellDp?.let { (it.width * scale).toInt() - 2 * padding } ?: 0
+        val availablePx = cellHeight - 2 * padding
 
         val smallest = resources.getDimension(R.dimen.widget_value_text_min)
         val largest = resources.getDimension(R.dimen.widget_value_text_max)
-        val wanted = if (widthPx == null) {
-            largest
-        } else {
-            fittingTextSizePx(resources, text.value, widthPx.toFloat(), smallest, largest)
-        }
-        val wantedLine = lineHeightPx(wanted, bold = true)
-
         val floor = resources.getDimension(R.dimen.widget_label_text_min)
-        val ceiling = maxOf(
-            floor,
-            minOf(resources.getDimension(R.dimen.widget_label_text_max), wanted * LABEL_SHARE),
-        )
-        val step = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_SP,
-            1f,
-            resources.displayMetrics,
-        )
+        val labelCount = listOfNotNull(text.name, text.footer).size
 
-        fun labels(size: Float): Int =
-            (text.name?.let { lineHeightPx(size) } ?: 0) +
-                (text.footer?.let { lineHeightPx(size) } ?: 0)
+        // The height the labels hold back while the value is drawn at this size. Their
+        // share of it, or the floor — a caption below that is not worth the row, so the
+        // room for it is reserved whether the value's size has earned it or not.
+        fun reserved(valueSize: Float): Int =
+            labelCount * lineHeightPx(maxOf(floor, valueSize * LABEL_SHARE))
 
-        fun fits(size: Float): Boolean {
-            if (2 * padding + wantedLine + labels(size) > cellHeight) return false
-            if (widthPx == null) return false
-            val name = text.name?.let { measureTextPx(it, size) } ?: 0f
-            val footer = text.footer?.let { measureTextPx(it, size) } ?: 0f
-            return maxOf(name, footer) <= widthPx
+        // Nothing to measure against: the cell's width is not known yet, or there is no
+        // text to measure. Hand back the labels' floor and the largest box that can ever
+        // be useful, bounded by the cell, and leave the rest to the auto-sizing in the
+        // launcher's own process.
+        if (widthPx <= 0 || text.value.isEmpty()) {
+            val height = (availablePx - labelCount * lineHeightPx(floor))
+                .coerceIn(lineHeightPx(smallest, bold = true), lineHeightPx(largest, bold = true))
+            return Metrics(height, 1, floor)
         }
-
-        var label = floor
-        while (label + step <= ceiling && fits(label + step)) label += step
 
         val box = valueBox(
             resources = resources,
             text = text.value,
             widthPx = widthPx,
-            availablePx = cellHeight - 2 * padding - labels(label),
+            availablePx = availablePx,
+            reserved = ::reserved,
             maxLines = maxValueLines,
             smallestPx = smallest,
-            largestPx = largest,
+            largestPx = valueCeiling(
+                text = text.value,
+                widthPx = widthPx,
+                availablePx = availablePx,
+                maxLines = maxValueLines,
+                labelCount = labelCount,
+                smallestPx = smallest,
+                largestPx = largest,
+                step = spStep(resources),
+            ),
+        )
+        val label = labelSize(
+            resources = resources,
+            text = text,
+            widthPx = widthPx,
+            availablePx = availablePx - box.height,
+            valueSize = box.textSize,
+            floorPx = floor,
+            labelCount = labelCount,
         )
         return Metrics(box.height, box.lines, label)
     }
 
     /**
-     * How many lines the value is drawn on and how tall that leaves its box.
+     * The size both labels are drawn at: up from the floor while the height left over by
+     * [valueSize]'s own row is really there, the text still fits [widthPx] without an
+     * ellipsis, and the caption stays under [LABEL_MAX_SHARE] of the number beside it.
+     *
+     * One size for both rows rather than one each, so the two read as a pair — which
+     * means the longer of them decides, and a long name holds a short date back to its
+     * own size rather than the two disagreeing down the middle of the widget.
+     */
+    private fun labelSize(
+        resources: Resources,
+        text: Text,
+        widthPx: Int,
+        availablePx: Int,
+        valueSize: Float,
+        floorPx: Float,
+        labelCount: Int,
+    ): Float {
+        if (labelCount == 0) return floorPx
+        val step = spStep(resources)
+        val ceiling = maxOf(floorPx, valueSize * LABEL_MAX_SHARE)
+        val rows = listOfNotNull(text.name, text.footer)
+
+        fun fits(size: Float): Boolean =
+            labelCount * lineHeightPx(size) <= availablePx &&
+                rows.all { measureTextPx(it, size) <= widthPx }
+
+        var size = floorPx
+        while (size + step <= ceiling && fits(size + step)) size += step
+        return size
+    }
+
+    /**
+     * The largest value size [valueBox]'s search need ever start from on this cell.
+     *
+     * Two bounds, each a necessary condition rather than a fit: the widest the text could
+     * be spread over [maxLines] lines, and the tallest one line of it plus the labels'
+     * share of the height can be. Both quantities scale with the text size, so one
+     * measurement at the top of the range gives the ratio and the bound follows without a
+     * search of its own.
+     *
+     * This buys speed rather than correctness — the answer is at or below it either way.
+     * What it avoids is laying out a hundred and fifty sizes that cannot fit,
+     * `widget_value_text_max` being a sanity bound rather than a size any cell reaches.
+     * Deliberately generous, because an over-estimate costs a few `StaticLayout`s and an
+     * under-estimate is a value drawn smaller than it should be.
+     *
+     * Rounded down onto the candidates the platform's own auto-sizing will offer — the
+     * minimum plus whole steps of the granularity — so that the search below starts on
+     * that ladder and every size it goes on to consider is one the launcher can actually
+     * settle on.
+     */
+    private fun valueCeiling(
+        text: String,
+        widthPx: Int,
+        availablePx: Int,
+        maxLines: Int,
+        labelCount: Int,
+        smallestPx: Float,
+        largestPx: Float,
+        step: Float,
+    ): Float {
+        val paint = valuePaint().apply { textSize = largestPx }
+        // Whitespace a line falls on is not drawn and so does not count against the
+        // width. Which runs a break could land in depends on the size, so take all of
+        // the text's whitespace off rather than work that out: what is left is below
+        // what any arrangement of lines has to fit.
+        val ink = paint.measureText(text) -
+            paint.measureText(text.filter { it.isWhitespace() })
+        val byWidth = if (ink <= 0f) largestPx else largestPx * maxLines * widthPx / ink
+        // The floor under a label is left out on purpose: without it the reservation is
+        // smaller, and a smaller reservation can only make this bound larger.
+        val rows = lineHeightPx(largestPx, bold = true) +
+            labelCount * lineHeightPx(largestPx * LABEL_SHARE)
+        val byHeight = if (rows <= 0) largestPx else largestPx * availablePx / rows
+        // Two steps of slack for the rounding in integer font metrics, which is the one
+        // place the linear scaling above is not exact.
+        val bound = (minOf(largestPx, byWidth, byHeight) + 2 * step).coerceIn(smallestPx, largestPx)
+        return smallestPx + floor((bound - smallestPx) / step) * step
+    }
+
+    /** A pixel-equivalent of 1sp: the granularity every text search here steps by. */
+    private fun spStep(resources: Resources): Float =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f, resources.displayMetrics)
+
+    /**
+     * How many lines the value is drawn on, how tall that leaves its box, and the size
+     * the launcher's own auto-sizing will settle on inside it — which the labels beside
+     * it are then measured against.
      *
      * The height is not the room available but the room *taken*, so that a cell with
      * more height than the text needs turns the difference into margin around all three
      * rows rather than into a gap between them.
      */
-    private data class ValueBox(val lines: Int, val height: Int)
+    private data class ValueBox(val lines: Int, val height: Int, val textSize: Float)
 
     /**
-     * Spends [availablePx] of height on the value: on one line, or on up to [maxLines]
-     * of them where that draws the number larger.
+     * Spends [availablePx] of height on the value — less whatever [reserved] holds back
+     * for the labels at each size considered — on one line, or on up to [maxLines] of
+     * them where that draws the number larger.
      *
      * Wrapping is not what a narrow cell does, it is what a narrow cell does *instead of
      * giving up*. One line of `2d 16h 46m` across a single home-screen cell is 11sp — the
@@ -503,36 +608,34 @@ object WidgetRenderer {
     private fun valueBox(
         resources: Resources,
         text: String,
-        widthPx: Int?,
+        widthPx: Int,
         availablePx: Int,
+        reserved: (Float) -> Int,
         maxLines: Int,
         smallestPx: Float,
         largestPx: Float,
     ): ValueBox {
         val floor = lineHeightPx(smallestPx, bold = true)
-        // Nothing to measure against: the cell's width is not known yet, or there is no
-        // text to measure. Hand back the largest box that can ever be useful, bounded by
-        // the cell, and leave the rest to the auto-sizing in the launcher's own process.
-        if (widthPx == null || widthPx <= 0 || text.isEmpty()) {
-            return ValueBox(1, availablePx.coerceIn(floor, lineHeightPx(largestPx, bold = true)))
-        }
 
-        var best = fitted(resources, text, widthPx, availablePx, 1, smallestPx, largestPx)
+        var best =
+            fitted(resources, text, widthPx, availablePx, reserved, 1, smallestPx, largestPx)
         // Two cases where nothing above one line can win, both worth not measuring: a
         // value already at the ceiling has nowhere larger to go and is whole by
         // definition, and a value with no space in it has nowhere to break, so
         // [breaksAtSpaces] would turn down every wrapped candidate in turn.
         if (best.textSize < largestPx && text.any { it.isWhitespace() }) {
             for (lines in 2..maxLines) {
-                val candidate =
-                    fitted(resources, text, widthPx, availablePx, lines, smallestPx, largestPx)
+                val candidate = fitted(
+                    resources, text, widthPx, availablePx, reserved, lines, smallestPx, largestPx,
+                )
                 val bigger = candidate.textSize > best.textSize
                 val rescued =
                     candidate.textSize == best.textSize && candidate.whole && !best.whole
                 if (bigger || rescued) best = candidate
             }
         }
-        return ValueBox(best.lines, best.height.coerceIn(floor, maxOf(floor, availablePx)))
+        val ceiling = maxOf(floor, availablePx - reserved(best.textSize))
+        return ValueBox(best.lines, best.height.coerceIn(floor, ceiling), best.textSize)
     }
 
     /**
@@ -566,7 +669,7 @@ object WidgetRenderer {
 
     /**
      * The size uniform auto-sizing will settle on for [text] given [maxLines] lines of a
-     * [widthPx] by [heightPx] box, and the height the result occupies.
+     * [widthPx] box inside [availablePx] of height, and the height the result occupies.
      *
      * Deliberately the same search `TextView.autoSizeText` runs, laying each candidate
      * out with the same unbounded `StaticLayout` and rejecting it on the same two counts
@@ -575,26 +678,28 @@ object WidgetRenderer {
      * what keeps the rows together: the box has to be the height of the text that will
      * be in it, and only this can say what that is before the launcher inflates
      * anything.
+     *
+     * The height a candidate is measured against is the cell's less what [reserved]
+     * holds back for the labels at *that* size, because their size follows the value's:
+     * a taller number is one with taller captions either side of it, and both have to
+     * come out of the same cell.
      */
     private fun fitted(
         resources: Resources,
         text: String,
         widthPx: Int,
-        heightPx: Int,
+        availablePx: Int,
+        reserved: (Float) -> Int,
         maxLines: Int,
         smallestPx: Float,
         largestPx: Float,
     ): Fit {
-        val step = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_SP,
-            1f,
-            resources.displayMetrics,
-        )
+        val step = spStep(resources)
         var candidate = largestPx
         while (candidate > smallestPx) {
             val layout = valueLayout(text, candidate, widthPx)
             if (layout.lineCount <= maxLines &&
-                layout.height <= heightPx &&
+                layout.height + reserved(candidate) <= availablePx &&
                 breaksAtSpaces(layout, text)
             ) {
                 return Fit(maxLines, candidate, layout.height, whole = true)
@@ -649,39 +754,26 @@ object WidgetRenderer {
             .build()
 
     /**
-     * How much of the value's size a label may reach. Two thirds is far enough to read
-     * comfortably and near enough that the number is still what the eye lands on; above
-     * about three quarters the three rows start to read as one paragraph.
+     * The proportion of the value's size a label is drawn at when height is what limits
+     * the widget — which is to say, the shape the whole thing grows in. Two fifths is
+     * what a caption under a display number wants to be: unmistakably secondary, still
+     * comfortably readable.
+     *
+     * Held back from the value's own budget rather than taken out of what is left. Taken
+     * out of what is left, a cell with height going spare spends all of it on the number
+     * and leaves the captions either side at their floor.
      */
-    private const val LABEL_SHARE = 0.66f
+    private const val LABEL_SHARE = 0.4f
 
     /**
-     * The size uniform auto-sizing will settle on for one line of [text] in [widthPx],
-     * arrived at the same way `TextView` does: candidates a pixel-equivalent of 1sp
-     * apart, largest first, and the first that fits wins.
+     * How far past [LABEL_SHARE] a label may be pushed by height the value could not use
+     * — usually because the width of the cell stopped the number growing first.
+     *
+     * Two thirds is far enough to read comfortably and near enough that the number is
+     * still what the eye lands on; above about three quarters the three rows start to
+     * read as one paragraph.
      */
-    private fun fittingTextSizePx(
-        resources: Resources,
-        text: String,
-        widthPx: Float,
-        smallestPx: Float,
-        largestPx: Float,
-    ): Float {
-        if (text.isEmpty() || widthPx <= 0f) return largestPx
-        val step = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_SP,
-            1f,
-            resources.displayMetrics,
-        )
-        val paint = valuePaint()
-        var candidate = largestPx
-        while (candidate > smallestPx) {
-            paint.textSize = candidate
-            if (paint.measureText(text) <= widthPx) return candidate
-            candidate -= step
-        }
-        return smallestPx
-    }
+    private const val LABEL_MAX_SHARE = 0.66f
 
     /** How wide one line of [text] is at [textSizePx], in a label's own typeface. */
     private fun measureTextPx(text: String, textSizePx: Float): Float =

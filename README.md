@@ -124,6 +124,22 @@ out. Which rows appear is decided by width, because width is what a row needs:
 Height then decides how large each of those is drawn, measured against the real cell
 rather than the band — see `WidgetRenderer.metricsFor`.
 
+### Filling the cell
+
+Nothing stops the text growing but the cell. There is a maximum in `dimens.xml` and it
+is a sanity bound rather than a size anything reaches: what actually decides is how wide
+the cell is, and how much of its height is left once the name and the date have taken
+their share. Drag a widget out to twice the size and the number is drawn twice as large,
+rather than the same number in the middle of more space.
+
+The share is a proportion — a label is drawn at about two fifths of the value, and may
+grow to two thirds of it where the value ran out of width before it ran out of height.
+Reserving a proportion rather than a fixed size is what keeps a caption from being
+squeezed down to its floor beside a number that has taken the whole cell. It is reserved
+from the *count* of labels and not from their text, so the size of the number is a
+property of the number: a long name is drawn smaller to fit the width, and never at the
+number's expense.
+
 ### Wrapping
 
 One cell is not wide enough for `2d 16h 46m` on one line at any size worth reading, so
@@ -141,15 +157,20 @@ way the platform's own auto-sizing measures it, and the extra line is taken only
 comes back bigger, or if it rescues a value that was being cut off. On a 2x1 with room
 for its number nothing changes, which is what lets the setting default to on.
 
+A tall widget is the other place it earns its keep, for the same reason and not an
+opposite one. One line of `4 months, 16 days` across four columns runs out of width long
+before a five-row cell runs out of height; split over two or three it keeps growing, and
+the height a single line cannot use would otherwise go to margin.
+
 The cut-off case is worth spelling out, because it was a bug rather than a preference.
 The value row has no ellipsis. Once auto-sizing hits its floor and the text still needs a
 second line, a `TextView` held to one draws that line and silently discards the rest — so
 a 2x1 counting `2 years, 0 months, 8 days` was reading `2 years, 0 months, 8` with
 nothing to say it had stopped. Wrapping is what puts the rest of it back.
 
-Two things it will not do. It never breaks inside a unit — `25d` has no space in it, and
-a line breaker left alone will happily put `25` above `d` — and it never takes height
-from the name or the date, which are sized first and against a single line.
+One thing it will not do: it never breaks inside a unit. `25d` has no space in it, and a
+line breaker left alone will happily put `25` above `d`, so a size that can only fit the
+three lines by doing that is turned down rather than the wrap.
 
 ## Reading on a wallpaper
 
