@@ -159,10 +159,12 @@ object WidgetRenderer {
         )
         val footer = targetSummary(context, timer, display)
 
-        // A timer with no name shows no name row, whatever the variant asked for, so
-        // everything below is measured against the rows that will actually be drawn.
-        val showName = detail != Detail.VALUE && timer.name.isNotBlank()
-        val showFooter = detail == Detail.EVERYTHING
+        // A row the timer has switched off, or a name row on a timer with no name,
+        // is not drawn whatever the variant asked for — so everything below is
+        // measured against the rows that will actually be drawn, and the value grows
+        // into the room a dropped row leaves rather than centring on a gap.
+        val showName = detail != Detail.VALUE && timer.showName && timer.name.isNotBlank()
+        val showFooter = detail == Detail.EVERYTHING && timer.showTarget
         val text = Text(
             value = valueText(head, display.tailMillis),
             name = if (showName) timer.name else null,

@@ -55,6 +55,8 @@ class EditTimerActivity : AppCompatActivity() {
     private var labelStyle = Timer.DEFAULT_LABEL_STYLE
     private var textTheme = Timer.DEFAULT_TEXT_THEME
     private var showBackground = Timer.DEFAULT_SHOW_BACKGROUND
+    private var showName = Timer.DEFAULT_SHOW_NAME
+    private var showTarget = Timer.DEFAULT_SHOW_TARGET
 
     /** Guards the chip and toggle listeners while [syncUi] writes their state. */
     private var syncing = false
@@ -105,6 +107,8 @@ class EditTimerActivity : AppCompatActivity() {
         labelStyle = timer.labelStyle
         textTheme = timer.textTheme
         showBackground = timer.showBackground
+        showName = timer.showName
+        showTarget = timer.showTarget
     }
 
     private fun restore(state: Bundle) {
@@ -115,6 +119,8 @@ class EditTimerActivity : AppCompatActivity() {
         labelStyle = LabelStyle.valueOf(state.getString(STATE_LABEL_STYLE, labelStyle.name))
         textTheme = TextTheme.valueOf(state.getString(STATE_TEXT_THEME, textTheme.name))
         showBackground = state.getBoolean(STATE_SHOW_BACKGROUND, showBackground)
+        showName = state.getBoolean(STATE_SHOW_NAME, showName)
+        showTarget = state.getBoolean(STATE_SHOW_TARGET, showTarget)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -126,6 +132,8 @@ class EditTimerActivity : AppCompatActivity() {
         outState.putString(STATE_LABEL_STYLE, labelStyle.name)
         outState.putString(STATE_TEXT_THEME, textTheme.name)
         outState.putBoolean(STATE_SHOW_BACKGROUND, showBackground)
+        outState.putBoolean(STATE_SHOW_NAME, showName)
+        outState.putBoolean(STATE_SHOW_TARGET, showTarget)
     }
 
     // -------------------------------------------------------------------- ui
@@ -193,6 +201,16 @@ class EditTimerActivity : AppCompatActivity() {
             showBackground = isChecked
             refresh()
         }
+        binding.showName.setOnCheckedChangeListener { _, isChecked ->
+            if (syncing) return@setOnCheckedChangeListener
+            showName = isChecked
+            refresh()
+        }
+        binding.showTarget.setOnCheckedChangeListener { _, isChecked ->
+            if (syncing) return@setOnCheckedChangeListener
+            showTarget = isChecked
+            refresh()
+        }
         binding.save.setOnClickListener { save() }
     }
 
@@ -222,6 +240,8 @@ class EditTimerActivity : AppCompatActivity() {
         )
         binding.longLabels.isChecked = labelStyle == LabelStyle.LONG
         binding.showBackground.isChecked = showBackground
+        binding.showName.isChecked = showName
+        binding.showTarget.isChecked = showTarget
         binding.textThemeGroup.check(
             when (textTheme) {
                 TextTheme.AUTO -> R.id.text_theme_auto
@@ -249,14 +269,15 @@ class EditTimerActivity : AppCompatActivity() {
             ZoneId.systemDefault(),
             spec,
         )
-        // Blank leaves the row out rather than leaving a gap, which is what the widget
-        // does with a nameless timer — and while the field is empty it is what the
-        // widget for this timer would show.
+        // Switched off, or blank, leaves the row out rather than leaving a gap — both
+        // of which are what the widget itself does with that row; see WidgetRenderer.
         val name = enteredName()
         binding.previewName.text = name
-        binding.previewName.visibility = if (name.isEmpty()) View.GONE else View.VISIBLE
+        binding.previewName.visibility =
+            if (showName && name.isNotEmpty()) View.VISIBLE else View.GONE
         binding.previewValue.text = Rendering.formatDisplay(display, labelStyle)
         binding.previewFooter.text = TimerSummary.target(this, spec)
+        binding.previewFooter.visibility = if (showTarget) View.VISIBLE else View.GONE
         syncPreviewColors(onWallpaper)
     }
 
@@ -357,6 +378,8 @@ class EditTimerActivity : AppCompatActivity() {
                 labelStyle = labelStyle,
                 textTheme = textTheme,
                 showBackground = showBackground,
+                showName = showName,
+                showTarget = showTarget,
             ),
         )
         WidgetUpdater.updateForTimer(this, id)
@@ -392,6 +415,8 @@ class EditTimerActivity : AppCompatActivity() {
         private const val STATE_LABEL_STYLE = "labelStyle"
         private const val STATE_TEXT_THEME = "textTheme"
         private const val STATE_SHOW_BACKGROUND = "showBackground"
+        private const val STATE_SHOW_NAME = "showName"
+        private const val STATE_SHOW_TARGET = "showTarget"
 
         fun editIntent(context: Context, timerId: String?): Intent =
             Intent(context, EditTimerActivity::class.java)
