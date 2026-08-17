@@ -32,6 +32,7 @@ class TimerBackupTest {
                 showBackground = true,
                 showName = false,
                 showTarget = true,
+                wrapValue = false,
             ),
             timer(
                 id = "launch",
@@ -44,6 +45,7 @@ class TimerBackupTest {
                 showBackground = false,
                 showName = true,
                 showTarget = false,
+                wrapValue = true,
             ),
         )
 
@@ -138,6 +140,20 @@ class TimerBackupTest {
     }
 
     @Test
+    fun `a backup made before wrapping existed is allowed to wrap`() {
+        // The opposite of what the test above wants, and the pair is the point. A missing
+        // row toggle has to mean "as it was" or an old file would delete a row someone
+        // is looking at; a missing wrap cannot delete anything, so it means what it means
+        // for a timer made today.
+        val decoded = TimerBackup.decode(
+            """[{"id":"christmas","name":"Christmas","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"]}]""",
+        )
+
+        assertTrue((decoded as TimerBackup.Result.Ok).timers.single().wrapValue)
+    }
+
+    @Test
     fun `the suggested file name carries the date`() {
         assertEquals(
             "countdowns-backup-2026-08-09.json",
@@ -159,6 +175,7 @@ class TimerBackupTest {
         showBackground: Boolean = Timer.DEFAULT_SHOW_BACKGROUND,
         showName: Boolean = Timer.DEFAULT_SHOW_NAME,
         showTarget: Boolean = Timer.DEFAULT_SHOW_TARGET,
+        wrapValue: Boolean = Timer.DEFAULT_WRAP_VALUE,
     ) = Timer(
         id = id,
         name = name,
@@ -168,5 +185,6 @@ class TimerBackupTest {
         showBackground = showBackground,
         showName = showName,
         showTarget = showTarget,
+        wrapValue = wrapValue,
     )
 }

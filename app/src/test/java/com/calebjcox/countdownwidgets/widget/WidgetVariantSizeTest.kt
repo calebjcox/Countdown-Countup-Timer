@@ -92,6 +92,25 @@ class WidgetVariantSizeTest {
         assertRows(110f, 120f, name = true, footer = true)
     }
 
+    /**
+     * One cell. The provider allows a resize down to it, so these are sizes a widget can
+     * really be handed rather than hypotheticals — and they are three different answers,
+     * because a single cell is not one size.
+     */
+    @Test
+    fun `a one-cell widget shows what its width can carry`() {
+        // A phone: about 64dp of content box, which is the number and nothing else. The
+        // name would be a dozen characters of ellipsis and the date would not start.
+        assertRows(64f, 76f, name = false, footer = false)
+        assertRows(64f, 152f, name = false, footer = false)
+        // A seven-inch tablet, where one cell is 105dp — wider than a phone's 2x1, and
+        // wide enough for the name that a phone has to drop.
+        assertRows(105f, 84f, name = true, footer = false)
+        // A ten-inch tablet at 130dp keeps all three rows: this is the size the request
+        // came from, and it is nothing like a phone's 1x1.
+        assertRows(130f, 92f, name = true, footer = true)
+    }
+
     @Test
     fun `a squashed cell drops rows in order`() {
         // Wide but flattened: no room for a third row, still room to say what it counts.

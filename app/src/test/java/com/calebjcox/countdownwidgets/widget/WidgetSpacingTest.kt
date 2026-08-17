@@ -16,6 +16,7 @@ import com.calebjcox.countdownwidgets.testing.VariantSelection
 import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -175,6 +176,128 @@ class WidgetSpacingTest {
         }
     }
 
+    /**
+     * What wrapping is for. One column is a size the widget can now be dragged to, and
+     * `4mo 16d` across 52dp of content box is the auto-sizing's floor — the point at
+     * which it has nothing left to give. A line break has plenty left to give.
+     */
+    @Test
+    fun `a one-cell widget wraps its countdown rather than shrinking it`() {
+        val wrapped = visibleValue(render(abbreviated, 64f, 152f))
+        val oneLine = visibleValue(render(abbreviated.copy(wrapValue = false), 64f, 152f))
+
+        assertTrue(
+            "the value stayed on one line at ${wrapped.textSize}px",
+            requireNotNull(wrapped.layout) { "the value never laid out" }.lineCount > 1,
+        )
+        assertTrue(
+            "wrapping drew the value at ${wrapped.textSize}px, no larger than the " +
+                "${oneLine.textSize}px one line already managed",
+            wrapped.textSize > oneLine.textSize,
+        )
+    }
+
+    /**
+     * A days countdown is the value this whole size was asked for, and it is the one
+     * with nowhere to break: `25d` is a single word to a line breaker, which will
+     * happily leave `25` on one line and `d` on the next if that is what fits the box.
+     * A tall single cell is where it would — there is height for three lines and width
+     * for none of them at that size — so this is the case that has to come back to one.
+     */
+    @Test
+    fun `a value with nowhere to break is left on one line`() {
+        val days = abbreviated.copy(
+            spec = TimerSpec.of(
+                target = LocalDateTime.parse("2026-12-25T00:00"),
+                precision = Precision.DATE,
+                fields = setOf(TimeField.DAY),
+            ),
+        )
+        val wrapped = visibleValue(render(days, 64f, 152f))
+        val oneLine = visibleValue(render(days.copy(wrapValue = false), 64f, 152f))
+
+        assertEquals(
+            "'${wrapped.text}' was split across lines with no space to split at",
+            1,
+            requireNotNull(wrapped.layout) { "the value never laid out" }.lineCount,
+        )
+        assertEquals(
+            "splitting a unit off its number was allowed to change the size",
+            oneLine.textSize,
+            wrapped.textSize,
+            0.01f,
+        )
+    }
+
+    /**
+     * And what it is not for. A cell with the width for its value gains nothing from a
+     * second line and must not take one — this is the assertion that lets the setting
+     * default to on, because it says an ordinary 2x1 is untouched by it.
+     */
+    @Test
+    fun `a widget with the width for its value keeps it on one line`() {
+        for ((width, height) in CELLS.filter { it.first >= 110f }) {
+            val wrapped = visibleValue(render(abbreviated, width, height))
+            val oneLine = visibleValue(render(abbreviated.copy(wrapValue = false), width, height))
+
+            assertEquals(
+                "at ${width}x$height the value wrapped with no need to",
+                1,
+                requireNotNull(wrapped.layout) { "the value never laid out" }.lineCount,
+            )
+            assertEquals(
+                "at ${width}x$height allowing a wrap changed the value's size",
+                oneLine.textSize,
+                wrapped.textSize,
+                0.01f,
+            )
+        }
+    }
+
+    /**
+     * The other case a line break rescues, and the reason the setting is not described
+     * as being about narrow widgets: spelled-out unit names outrun a 2x1 as surely as a
+     * short value outruns one cell. What one line does there is worse than shrinking. The
+     * auto-sizing runs out at the floor, the text needs a second line anyway, and a
+     * `TextView` held to one draws that line and silently discards the rest — so a
+     * widget counting `2 years, 0 months, 8 days` has been reading `2 years, 0 months, 8`.
+     */
+    @Test
+    fun `a value too long for its cell wraps instead of being cut off`() {
+        val wrapped = visibleValue(render(spelledOut, 140f, 74f))
+        val oneLine = visibleValue(render(spelledOut.copy(wrapValue = false), 140f, 74f))
+
+        // Both are already at the smallest size there is, so this is the case where the
+        // extra line buys nothing in points and everything in characters.
+        assertEquals(
+            "the one-line value was not at the floor, so this proves nothing about size",
+            oneLine.textSize,
+            wrapped.textSize,
+            0.01f,
+        )
+        assertNotEquals(
+            "one line fitted the whole of it into a 140x74 cell after all",
+            oneLine.text.toString(),
+            drawnText(oneLine),
+        )
+        assertEquals(
+            "the wrapped value still does not show all of itself",
+            wrapped.text.toString(),
+            drawnText(wrapped),
+        )
+    }
+
+    /**
+     * The part of the value a reader can actually see: the lines within `maxLines`, which
+     * is all a `TextView` draws and — with no ellipsis on this row — all it admits to.
+     */
+    private fun drawnText(value: TextView): String {
+        val layout = requireNotNull(value.layout) { "the value never laid out" }
+        return (0 until minOf(layout.lineCount, value.maxLines)).joinToString(" ") {
+            value.text.substring(layout.getLineStart(it), layout.getLineEnd(it)).trim()
+        }
+    }
+
     /** The name's and footer's text size in sp, on a cell of this size. */
     private fun labelSizes(timer: Timer, widthDp: Float, heightDp: Float): Pair<Float, Float> {
         val root = render(timer, widthDp, heightDp)
@@ -255,8 +378,17 @@ class WidgetSpacingTest {
          * Content-box sizes real launchers hand out, one per band and then some — the
          * tall-and-narrow ones matter most, because a cell with height to spare is
          * exactly where the space used to go.
+         *
+         * The four below 110dp are single cells: a phone's, short and tall, and the
+         * seven- and ten-inch tablets' — where one cell is wider than a phone's 2x1.
+         * They are where a value wraps, so they are also where the box has to hug text
+         * this file cannot see the line breaks of.
          */
         val CELLS = listOf(
+            64f to 76f,
+            64f to 152f,
+            105f to 84f,
+            130f to 92f,
             120f to 45f,
             140f to 74f,
             140f to 100f,

@@ -32,7 +32,7 @@ import org.robolectric.annotation.GraphicsMode
  * rotation and the app is never asked to redraw. The renderer used to size every variant
  * from the single cell matching the configuration's current orientation, which meant a
  * redraw that happened while any app was in landscape — an alarm tick, the half-hourly
- * `updatePeriodMillis` net — measured all five variants against a landscape row. A
+ * `updatePeriodMillis` net — measured every variant against a landscape row. A
  * phone's landscape row is little over half the height of its portrait one, so back on
  * the portrait home screen the number was pinned to the 11sp floor and sat there,
  * indistinguishable from its own captions, until some later update happened to run in
@@ -115,7 +115,7 @@ class WidgetOrientationTest {
 
     /**
      * The renderer has to know which variant a cell will select, and it now works that
-     * out itself rather than being told one cell for all five. The rule is the
+     * out itself rather than being told one cell for all of them. The rule is the
      * platform's, so this asserts the copy against the original — the same call
      * `AppWidgetHostView` makes, reached through [VariantSelection].
      *
@@ -201,9 +201,26 @@ class WidgetOrientationTest {
          * either side of each, both reported cells, and one below everything — which is
          * the branch with no fitting candidate at all, where the platform falls back to
          * the smallest variant rather than to none.
+         *
+         * The narrow entries are the ones to keep an eye on. A one-cell widget is where
+         * the breakpoints sit closest together — three of them inside 54dp of width — so
+         * it is where a transcription of the platform's rule is likeliest to disagree
+         * with it, and it is the only band whose answer differs between a phone and a
+         * tablet. Hence a real 1x1 of each: 64x76 on a phone, 105x84 and 130x92 on the
+         * two tablets, which are wider than a phone's 2x1.
          */
         val PROBED_CELLS = listOf(
             SizeF(90f, 30f),
+            SizeF(56f, 39f),
+            SizeF(56f, 40f),
+            SizeF(56f, 72f),
+            SizeF(64f, 76f),
+            SizeF(64f, 152f),
+            SizeF(91f, 50f),
+            SizeF(92f, 50f),
+            SizeF(105f, 84f),
+            SizeF(109f, 68f),
+            SizeF(130f, 92f),
             SizeF(110f, 40f),
             SizeF(110f, 49f),
             SizeF(110f, 50f),

@@ -30,6 +30,12 @@ data class Timer(
      */
     val showName: Boolean = DEFAULT_SHOW_NAME,
     val showTarget: Boolean = DEFAULT_SHOW_TARGET,
+    /**
+     * Whether the value may run onto a second and third line where that makes it
+     * bigger. Permission, not instruction: see WidgetRenderer.valueBox, which wraps
+     * only when a line break buys the number a larger size than one line can.
+     */
+    val wrapValue: Boolean = DEFAULT_WRAP_VALUE,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put(KEY_ID, id)
@@ -42,6 +48,7 @@ data class Timer(
         put(KEY_SHOW_BACKGROUND, showBackground)
         put(KEY_SHOW_NAME, showName)
         put(KEY_SHOW_TARGET, showTarget)
+        put(KEY_WRAP_VALUE, wrapValue)
     }
 
     companion object {
@@ -58,6 +65,8 @@ data class Timer(
         const val DEFAULT_SHOW_NAME = true
         const val DEFAULT_SHOW_TARGET = true
 
+        const val DEFAULT_WRAP_VALUE = true
+
         private const val KEY_ID = "id"
         private const val KEY_NAME = "name"
         private const val KEY_TARGET = "target"
@@ -68,6 +77,7 @@ data class Timer(
         private const val KEY_SHOW_BACKGROUND = "showBackground"
         private const val KEY_SHOW_NAME = "showName"
         private const val KEY_SHOW_TARGET = "showTarget"
+        private const val KEY_WRAP_VALUE = "wrapValue"
 
         fun newId(): String = UUID.randomUUID().toString()
 
@@ -104,6 +114,7 @@ data class Timer(
                 showBackground = json.optBoolean(KEY_SHOW_BACKGROUND, DEFAULT_SHOW_BACKGROUND),
                 showName = json.optBoolean(KEY_SHOW_NAME, DEFAULT_SHOW_NAME),
                 showTarget = json.optBoolean(KEY_SHOW_TARGET, DEFAULT_SHOW_TARGET),
+                wrapValue = json.optBoolean(KEY_WRAP_VALUE, DEFAULT_WRAP_VALUE),
             )
         }.getOrNull()
 

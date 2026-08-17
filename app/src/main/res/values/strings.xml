@@ -41,6 +41,8 @@
     <string name="show_name">Show the timer\'s name</string>
     <string name="show_target">Show the date it counts to</string>
     <string name="long_labels">Spell out unit names</string>
+    <string name="wrap_value">Let the countdown use more than one line</string>
+    <string name="wrap_value_hint">Used only where one line has run out of room: a narrow widget, or unit names spelled out. Anywhere else the countdown stays on one line by itself.</string>
     <string name="show_background">Show a solid background behind the widget</string>
     <string name="text_color">Text color on the wallpaper</string>
     <string name="text_color_auto">Auto</string>

@@ -207,6 +207,25 @@
                 android:text="@string/long_labels" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/wrap_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/wrap_value" />
+
+            <!--
+              The preview below is as wide as the screen, so it can never show this one
+              doing anything — a line only breaks where there is no width for it. The
+              hint is what stands in for that.
+            -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="8dp"
+                android:text="@string/wrap_value_hint"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/show_background"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
