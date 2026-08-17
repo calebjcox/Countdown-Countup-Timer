@@ -8,6 +8,7 @@ import android.text.format.DateFormat
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.chip.Chip
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -174,6 +175,12 @@ class EditTimerActivity : AppCompatActivity() {
             refresh()
         }
 
+        // No syncing guard, unlike the controls below: nothing writes this field back,
+        // so the only thing that moves it is the user typing — or the framework
+        // restoring it after a rotation, which happens once onCreate has run and is
+        // exactly when the preview needs redrawing anyway.
+        binding.name.doAfterTextChanged { refresh() }
+
         binding.date.setOnClickListener { showDatePicker() }
         binding.time.setOnClickListener { showTimePicker() }
         binding.longLabels.setOnCheckedChangeListener { _, isChecked ->
@@ -242,6 +249,12 @@ class EditTimerActivity : AppCompatActivity() {
             ZoneId.systemDefault(),
             spec,
         )
+        // Blank leaves the row out rather than leaving a gap, which is what the widget
+        // does with a nameless timer — and while the field is empty it is what the
+        // widget for this timer would show.
+        val name = enteredName()
+        binding.previewName.text = name
+        binding.previewName.visibility = if (name.isEmpty()) View.GONE else View.VISIBLE
         binding.previewValue.text = Rendering.formatDisplay(display, labelStyle)
         binding.previewFooter.text = TimerSummary.target(this, spec)
         syncPreviewColors(onWallpaper)
@@ -255,6 +268,7 @@ class EditTimerActivity : AppCompatActivity() {
      */
     private fun syncPreviewColors(onWallpaper: Boolean) {
         val colors = WidgetPalette.forAppearance(this, showBackground, textTheme)
+        binding.previewName.setTextColor(colors.secondary)
         binding.previewValue.setTextColor(colors.primary)
         binding.previewFooter.setTextColor(colors.secondary)
         binding.previewCard.setCardBackgroundColor(
@@ -264,6 +278,9 @@ class EditTimerActivity : AppCompatActivity() {
             ),
         )
     }
+
+    /** What [save] would store as the name, so the preview cannot promise another. */
+    private fun enteredName(): String = binding.name.text?.toString()?.trim().orEmpty()
 
     private fun targetDateTime(): LocalDateTime = LocalDateTime.of(
         targetDate,
@@ -324,7 +341,7 @@ class EditTimerActivity : AppCompatActivity() {
     // ---------------------------------------------------------------- actions
 
     private fun save() {
-        val name = binding.name.text?.toString()?.trim().orEmpty()
+        val name = enteredName()
         if (name.isEmpty()) {
             binding.nameLayout.error = getString(R.string.name_required)
             return
