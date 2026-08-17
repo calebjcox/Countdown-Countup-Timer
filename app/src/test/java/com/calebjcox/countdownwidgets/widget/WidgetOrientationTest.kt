@@ -75,32 +75,38 @@ class WidgetOrientationTest {
 
     @Test
     fun `the portrait cell keeps its size when a landscape cell is reported too`() {
-        val alone = valueSizeSp(listOf(PORTRAIT), PORTRAIT)
-        val both = valueSizeSp(listOf(PORTRAIT, LANDSCAPE), PORTRAIT)
+        for ((portrait, landscape) in PAIRS) {
+            val alone = valueSizeSp(listOf(portrait), portrait)
+            val both = valueSizeSp(listOf(portrait, landscape), portrait)
 
-        assertEquals(
-            "reporting the landscape cell as well cost the portrait one " +
-                "${alone - both}sp of its number",
-            alone,
-            both,
-            0.01f,
-        )
-        // Teeth: without this the test would pass on a widget that collapsed both cells
-        // to the floor, which is the failure it exists to catch.
-        assertTrue(
-            "a ${PORTRAIT.width}x${PORTRAIT.height} cell drew its number at ${both}sp, " +
-                "no bigger than the captions beside it",
-            both >= 2 * LABEL_FLOOR_SP,
-        )
+            assertEquals(
+                "reporting the ${landscape.width}x${landscape.height} landscape cell as " +
+                    "well cost the ${portrait.width}x${portrait.height} portrait one " +
+                    "${alone - both}sp of its number",
+                alone,
+                both,
+                0.01f,
+            )
+            // Teeth: without this the test would pass on a widget that collapsed both
+            // cells to the floor, which is the failure it exists to catch.
+            assertTrue(
+                "a ${portrait.width}x${portrait.height} cell drew its number at " +
+                    "${both}sp, no bigger than the captions beside it",
+                both >= 2 * LABEL_FLOOR_SP,
+            )
+        }
     }
 
     @Test
     fun `the landscape cell keeps its size when a portrait cell is reported too`() {
-        assertEquals(
-            valueSizeSp(listOf(LANDSCAPE), LANDSCAPE),
-            valueSizeSp(listOf(PORTRAIT, LANDSCAPE), LANDSCAPE),
-            0.01f,
-        )
+        for ((portrait, landscape) in PAIRS) {
+            assertEquals(
+                "at ${landscape.width}x${landscape.height}",
+                valueSizeSp(listOf(landscape), landscape),
+                valueSizeSp(listOf(portrait, landscape), landscape),
+                0.01f,
+            )
+        }
     }
 
     /**
@@ -109,13 +115,15 @@ class WidgetOrientationTest {
      */
     @Test
     fun `the order the cells are reported in does not matter`() {
-        for (cell in listOf(PORTRAIT, LANDSCAPE)) {
-            assertEquals(
-                "at ${cell.width}x${cell.height}",
-                valueSizeSp(listOf(PORTRAIT, LANDSCAPE), cell),
-                valueSizeSp(listOf(LANDSCAPE, PORTRAIT), cell),
-                0.01f,
-            )
+        for ((portrait, landscape) in PAIRS) {
+            for (cell in listOf(portrait, landscape)) {
+                assertEquals(
+                    "at ${cell.width}x${cell.height}",
+                    valueSizeSp(listOf(portrait, landscape), cell),
+                    valueSizeSp(listOf(landscape, portrait), cell),
+                    0.01f,
+                )
+            }
         }
     }
 
@@ -199,6 +207,19 @@ class WidgetOrientationTest {
         val PORTRAIT = SizeF(216f, 91f)
         val LANDSCAPE = SizeF(500f, 53f)
 
+        /**
+         * And the pair for a widget dragged out to the whole screen, where the two are
+         * furthest apart. A 3x1 is small enough that the two cells select different
+         * variants on width alone; a full-screen one is bigger than every breakpoint in
+         * both orientations, so nothing but a rung shaped like it keeps the two apart —
+         * and lumped together they are sized for the corner of the two, which is 325 wide
+         * and 250 tall and is neither of them.
+         */
+        val BIG_PORTRAIT = SizeF(325f, 549f)
+        val BIG_LANDSCAPE = SizeF(700f, 250f)
+
+        val PAIRS = listOf(PORTRAIT to LANDSCAPE, BIG_PORTRAIT to BIG_LANDSCAPE)
+
         /** `widget_label_text_min`, in sp. */
         const val LABEL_FLOOR_SP = 12f
 
@@ -242,6 +263,18 @@ class WidgetOrientationTest {
             LANDSCAPE,
             SizeF(129f, 110f),
             SizeF(130f, 110f),
+            SizeF(130f, 219f),
+            SizeF(130f, 220f),
+            SizeF(299f, 130f),
+            SizeF(300f, 130f),
+            SizeF(300f, 220f),
+            SizeF(300f, 320f),
+            SizeF(300f, 450f),
+            BIG_PORTRAIT,
+            BIG_LANDSCAPE,
+            SizeF(660f, 210f),
+            SizeF(700f, 330f),
+            SizeF(900f, 800f),
         )
     }
 }

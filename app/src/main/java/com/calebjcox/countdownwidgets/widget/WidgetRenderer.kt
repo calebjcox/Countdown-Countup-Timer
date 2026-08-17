@@ -111,10 +111,22 @@ object WidgetRenderer {
      * column has the height for three rows but not the width to spend on padding, so it
      * stays compact and keeps the room for the text.
      *
-     * Two pairs of entries carry the same variant at different heights. That is not
-     * redundancy: each one also sizes the rows to the cell it is for — see [metricsFor] —
-     * so the pair is what lets a tall cell spend its extra height on a bigger number
-     * rather than on margin.
+     * Several entries carry the same variant at different sizes. That is not redundancy:
+     * each one also sizes the rows to the cell it is for — see [metricsFor] — so the
+     * entry is what lets a tall cell spend its extra height on a bigger number rather
+     * than on margin.
+     *
+     * The five above 130x110 exist for that reason alone, and they are the ladder's real
+     * work at the large end. Every cell a phone can hand out that is bigger than the
+     * whole of this widget's layout fits every entry, so the nearest one wins — and with
+     * nothing above 130x110, a full-screen portrait cell and a full-screen landscape cell
+     * are both nearest to it. One entry has to serve both, [sizingFor] takes the smaller
+     * of them on each axis, and a widget five rows tall gets sized for the height of a
+     * landscape row it is not being drawn in. Rungs that differ in *shape* rather than
+     * only in size are what separate them: 300x130 and 300x220 catch a wide, short
+     * landscape cell, 300x320 and 300x450 a tall portrait one, and 130x220 a
+     * one-column-wide tower. None of them can be selected by a cell smaller than itself,
+     * so nothing below 130x110 moves.
      */
     private val BREAKPOINTS = listOf(
         SizeF(56f, 40f) to Variant(Detail.VALUE, Density.COMPACT),
@@ -125,6 +137,11 @@ object WidgetRenderer {
         SizeF(110f, 68f) to Variant(Detail.EVERYTHING, Density.COMPACT),
         SizeF(110f, 86f) to Variant(Detail.EVERYTHING, Density.COMPACT),
         SizeF(130f, 110f) to Variant(Detail.EVERYTHING, Density.ROOMY),
+        SizeF(130f, 220f) to Variant(Detail.EVERYTHING, Density.ROOMY),
+        SizeF(300f, 130f) to Variant(Detail.EVERYTHING, Density.ROOMY),
+        SizeF(300f, 220f) to Variant(Detail.EVERYTHING, Density.ROOMY),
+        SizeF(300f, 320f) to Variant(Detail.EVERYTHING, Density.ROOMY),
+        SizeF(300f, 450f) to Variant(Detail.EVERYTHING, Density.ROOMY),
     )
 
     /**
@@ -179,7 +196,11 @@ object WidgetRenderer {
      * `RemoteViews` is right in both.
      *
      * Two cells can land on the same variant. Then it takes the smaller of them on each
-     * axis, because the text has to fit whichever one the launcher hands it.
+     * axis, because the text has to fit whichever one the launcher hands it — and the
+     * corner of a tall cell and a wide one is a cell neither of them is, so a widget
+     * sized there is smaller than both. That is a last resort rather than a design:
+     * keeping the two apart is [BREAKPOINTS]' job, and the rungs above 130x110 are there
+     * to do it.
      */
     private fun sizingFor(cells: List<SizeF>): Map<SizeF, SizeF> {
         val sizing = mutableMapOf<SizeF, SizeF>()
