@@ -52,10 +52,11 @@ data class Timer(
     }
 
     companion object {
-        // Named once and used for the constructor defaults, for anything read back
-        // from storage without them, and by the editor. Spelling these out in more
-        // than one place is how a new timer came to save showBackground = false
-        // while the model claimed the opposite.
+        // The single source of every appearance default: the constructor, anything
+        // read back from storage without them, and the editor all take them from
+        // here. A default written down anywhere else is one that can disagree with
+        // this one — see EditTimerActivity, which holds appearance in fields rather
+        // than letting a layout attribute stand in for a default.
 
         // Spelled out rather than abbreviated: "3 days, 4 hours" reads as itself,
         // where "3d 4h" has to be decoded. Anyone who wants the compact form is one
