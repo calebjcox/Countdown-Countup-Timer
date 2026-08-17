@@ -39,7 +39,7 @@
     <string name="units_hint">Pick any combination. Seconds tick live on the widget; the units above them are filled in automatically so the clock reads correctly.</string>
     <string name="style_section">Appearance</string>
     <string name="long_labels">Spell out unit names</string>
-    <string name="show_background">Show widget background</string>
+    <string name="show_background">Show a solid background behind the widget</string>
     <string name="text_color">Text color on the wallpaper</string>
     <string name="text_color_auto">Auto</string>
     <string name="text_color_light">Light</string>
