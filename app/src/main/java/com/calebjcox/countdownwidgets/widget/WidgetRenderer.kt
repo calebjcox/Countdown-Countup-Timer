@@ -61,9 +61,9 @@ object WidgetRenderer {
      * answer different questions: whether there is room for a row at all, and how much
      * of the room left over should go to breathing space rather than to the value.
      *
-     * Only the padding now. Each band used to carry a label size as well, which made
-     * the band the answer to a question it cannot see — how large a caption has to be
-     * to read — and pinned a 2x1 and a 3x1 at 10sp. [metricsFor] measures it instead.
+     * Only the padding. A label size per band would make the band the answer to a
+     * question it cannot see — how large a caption has to be to read — so [metricsFor]
+     * measures that against the real cell instead.
      */
     private enum class Density(@DimenRes val padding: Int) {
         COMPACT(padding = R.dimen.widget_padding_compact),
