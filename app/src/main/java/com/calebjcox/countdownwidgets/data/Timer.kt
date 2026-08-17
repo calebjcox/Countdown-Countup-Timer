@@ -65,8 +65,9 @@ data class Timer(
         val DEFAULT_TEXT_THEME = TextTheme.AUTO
         const val DEFAULT_SHOW_BACKGROUND = false
 
-        // Both rows on by default, which is also what a timer saved before these
-        // existed was showing — so an upgrade changes nothing anyone can see.
+        // Both rows on, because that is what a stored timer carrying neither field
+        // is already showing. These two are the default for absent data as much as
+        // for a new timer, so anything else here redraws widgets nobody touched.
         const val DEFAULT_SHOW_NAME = true
         const val DEFAULT_SHOW_TARGET = true
 
@@ -112,8 +113,8 @@ data class Timer(
                 spec = TimerSpec.of(target, precision, fields),
                 labelStyle = enumOf<LabelStyle>(json.optString(KEY_LABEL_STYLE))
                     ?: DEFAULT_LABEL_STYLE,
-                // Absent from anything saved before the setting existed, which is
-                // exactly the case AUTO is the right answer for.
+                // A stored timer with no text theme is one nobody chose a theme
+                // for, which is exactly the case AUTO answers.
                 textTheme = enumOf<TextTheme>(json.optString(KEY_TEXT_THEME))
                     ?: DEFAULT_TEXT_THEME,
                 showBackground = json.optBoolean(KEY_SHOW_BACKGROUND, DEFAULT_SHOW_BACKGROUND),
