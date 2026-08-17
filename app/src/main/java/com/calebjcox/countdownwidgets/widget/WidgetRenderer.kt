@@ -268,7 +268,7 @@ object WidgetRenderer {
         // else is a variant that moves when that somewhere else does.
         val resources = context.resources
         val padding = resources.getDimensionPixelSize(density.padding)
-        views.setViewPadding(R.id.widget_root, padding, padding, padding, padding)
+        views.setViewPadding(android.R.id.background, padding, padding, padding, padding)
 
         val head = Rendering.formatFields(
             values = display.staticValues,
@@ -353,7 +353,7 @@ object WidgetRenderer {
         views.setTextViewText(R.id.widget_footer, footer)
 
         views.setOnClickPendingIntent(
-            R.id.widget_root,
+            android.R.id.background,
             EditTimerActivity.widgetTapIntent(context, appWidgetId, timer.id),
         )
         return views
@@ -880,7 +880,7 @@ object WidgetRenderer {
         val (size, variant) = BREAKPOINTS.first()
         val resources = context.resources
         val padding = resources.getDimensionPixelSize(variant.density.padding)
-        views.setViewPadding(R.id.widget_root, padding, padding, padding, padding)
+        views.setViewPadding(android.R.id.background, padding, padding, padding, padding)
         val prompt = context.getString(R.string.widget_unconfigured)
         val metrics = metricsFor(
             resources = resources,
@@ -897,7 +897,7 @@ object WidgetRenderer {
         views.setViewVisibility(R.id.widget_value, View.VISIBLE)
         views.setTextViewText(R.id.widget_value, prompt)
         views.setOnClickPendingIntent(
-            R.id.widget_root,
+            android.R.id.background,
             WidgetConfigActivity.reconfigureIntent(context, appWidgetId),
         )
         return views

@@ -8,9 +8,13 @@
   placeholders — WidgetPalette resolves the real ones at draw time from the
   wallpaper's own hint, which is a different question from the system theme and
   therefore cannot be answered by a -night qualifier.
+
+  The root is @android:id/background, which matters most on this layout: with
+  nothing here drawing a background, that id is the only thing telling the launcher
+  which view its rounded corners belong to. See widget_timer.xml.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_root"
+    android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
