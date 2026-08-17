@@ -62,6 +62,25 @@ class TimerSpecTest {
     }
 
     @Test
+    fun `a time of day defaults to the calendar units plus hours and minutes`() {
+        assertEquals(
+            setOf(
+                TimeField.YEAR,
+                TimeField.MONTH,
+                TimeField.DAY,
+                TimeField.HOUR,
+                TimeField.MINUTE,
+            ),
+            TimerSpec.DEFAULT_DATE_TIME_FIELDS,
+        )
+
+        // Seconds would replace the whole clock portion with a Chronometer's H:MM:SS.
+        val spec =
+            TimerSpec.of(localDateTime("2026-12-25T18:45"), Precision.DATE_TIME, emptySet())
+        assertFalse(spec.usesChronometer)
+    }
+
+    @Test
     fun `fields are always ordered largest first`() {
         val spec = TimerSpec.of(
             localDateTime("2026-12-25T18:45"),

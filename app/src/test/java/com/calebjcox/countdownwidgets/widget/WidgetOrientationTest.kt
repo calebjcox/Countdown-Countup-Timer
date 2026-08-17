@@ -7,6 +7,7 @@ import android.widget.FrameLayout
 import android.widget.RemoteViews
 import android.widget.TextView
 import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -55,15 +56,20 @@ class WidgetOrientationTest {
     private val nowMillis =
         LocalDateTime.parse("2026-08-16T09:12:00").atZone(zone).toInstant().toEpochMilli()
 
-    /** The widget from the bug report: a short value, so its size is the cell's to set. */
+    /**
+     * The widget from the bug report: a short value, so its size is the cell's to set.
+     * `8d` is what was reported, so the style is stated rather than inherited from
+     * whatever a new timer currently defaults to.
+     */
     private val timer = Timer(
-        id = "divorce",
-        name = "Divorce",
+        id = "move-out",
+        name = "Move Out",
         spec = TimerSpec.of(
             target = LocalDateTime.parse("2026-08-24T00:00"),
             precision = Precision.DATE,
             fields = setOf(TimeField.DAY),
         ),
+        labelStyle = LabelStyle.SHORT,
         showBackground = true,
     )
 

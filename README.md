@@ -14,6 +14,9 @@ which units appear, so the same target reads however you want it to:
 | days, hours, minutes, seconds | `1d 19:22:18` |
 | hours, minutes, seconds | `1:22:18` |
 
+Unit names are spelled out by default — `4 months, 16 days`. **Spell out unit
+names** in the editor turns that off for the abbreviated form above.
+
 Past targets count up instead, with no separate setting: `3y 220d 13:37:42`.
 
 ## Permissions

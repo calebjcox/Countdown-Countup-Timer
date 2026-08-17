@@ -56,7 +56,11 @@ data class Timer(
         // from storage without them, and by the editor. Spelling these out in more
         // than one place is how a new timer came to save showBackground = false
         // while the model claimed the opposite.
-        val DEFAULT_LABEL_STYLE = LabelStyle.SHORT
+
+        // Spelled out rather than abbreviated: "3 days, 4 hours" reads as itself,
+        // where "3d 4h" has to be decoded. Anyone who wants the compact form is one
+        // switch away, and the renderer shrinks the text to fit either way.
+        val DEFAULT_LABEL_STYLE = LabelStyle.LONG
         val DEFAULT_TEXT_THEME = TextTheme.AUTO
         const val DEFAULT_SHOW_BACKGROUND = false
 

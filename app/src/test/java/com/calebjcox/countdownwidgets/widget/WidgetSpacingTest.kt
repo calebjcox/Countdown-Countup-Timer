@@ -69,7 +69,12 @@ class WidgetSpacingTest {
         showBackground = true,
     )
 
-    /** Short enough to be limited by the cell's height instead. */
+    /**
+     * Short enough to be limited by the cell's height instead. The label style is
+     * stated rather than left to the default — `4mo 16d` is the whole point of this
+     * fixture, and half the assertions below stop meaning anything if a change to
+     * what a new timer starts as quietly spells it out.
+     */
     private val abbreviated = Timer(
         id = "christmas",
         name = "Christmas",
@@ -78,6 +83,7 @@ class WidgetSpacingTest {
             precision = Precision.DATE,
             fields = setOf(TimeField.MONTH, TimeField.DAY),
         ),
+        labelStyle = LabelStyle.SHORT,
         showBackground = true,
     )
 

@@ -165,6 +165,12 @@ class EditTimerActivity : AppCompatActivity() {
             if (!isChecked || syncing) return@addOnButtonCheckedListener
             precision =
                 if (checkedId == R.id.precision_date) Precision.DATE else Precision.DATE_TIME
+            // Asking for a time of day turns on the units that time of day exists to
+            // express. Normalization strips the clock units on the way to a bare date,
+            // so without this the way back leaves a timer that shows nothing finer than
+            // days while claiming a target of 6:30pm. Only the switch itself does this —
+            // a clock unit unchecked afterwards stays unchecked.
+            if (precision == Precision.DATE_TIME) fields.addAll(TimerSpec.DEFAULT_CLOCK_FIELDS)
             refresh()
         }
 
