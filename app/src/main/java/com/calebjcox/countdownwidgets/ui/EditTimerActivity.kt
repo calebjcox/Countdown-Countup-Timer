@@ -48,10 +48,10 @@ class EditTimerActivity : AppCompatActivity() {
     private var targetTime: LocalTime = LocalTime.of(9, 0)
     private val fields = linkedSetOf<TimeField>()
 
-    // Appearance is held here rather than read back off the switches. Doing it the
-    // other way round is what let a new timer save showBackground = false: the
-    // switch was only ever assigned when loading an existing timer, so a new one
-    // silently inherited whatever the layout happened to default to.
+    // Appearance is held in these fields and never read back off the switches. A
+    // switch carries only what something assigned to it, so reading one for a timer
+    // that loaded no saved value reads the layout's attribute instead of the real
+    // default. The defaults come from Timer, which names them once.
     private var labelStyle = Timer.DEFAULT_LABEL_STYLE
     private var textTheme = Timer.DEFAULT_TEXT_THEME
     private var showBackground = Timer.DEFAULT_SHOW_BACKGROUND

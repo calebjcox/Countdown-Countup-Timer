@@ -31,22 +31,13 @@ data class DeviceSpec(
      *
      * Whole cells, always. A launcher hands out a content box of *n* columns by *m*
      * rows and nothing in between, so a screenshot at any other size is advertising a
-     * layout nobody can drop. That is what the smallest slot used to do: at 52dp it
-     * fell short of the 68dp where the target date appears, so the store listing showed
-     * a widget with no date on a size no launcher offers — every real one-row cell
-     * clears that breakpoint. So each device below declares one row height and the
-     * content widths its columns come to, and every size here is a whole number of
-     * each. Two of the three end up one row tall, because that is what a 3x1 and a 2x1
-     * are; the shot varies by width instead, which is the axis a user actually sees.
+     * layout nobody can drop. Each device below declares one row height and the content
+     * widths its columns come to, and every size here is a whole number of each. Two of
+     * the three end up one row tall, because that is what a 3x1 and a 2x1 are; the shot
+     * varies by width instead, which is the axis a user actually sees.
      *
-     * They used to be picked to *avoid* a band. Every size was pushed above 150x70
-     * because anything smaller rendered a bare number with nothing to say what it
-     * counted, which read as a rendering fault sitting under two labelled widgets. That
-     * was issue #11, and it was a symptom of breakpoints calibrated against the legacy
-     * cell formula rather than against real cells — a widget had to be sized up past
-     * what a launcher would ever give it before it looked right. With the bands
-     * recalibrated, sizing the shots honestly costs nothing: all three carry their name
-     * and their date.
+     * Sizing them honestly costs nothing, because every real one-row cell clears the
+     * 68dp where the target date appears: all three carry their name and their date.
      */
     val widgetSizesDp: List<Pair<Int, Int>>,
 ) {

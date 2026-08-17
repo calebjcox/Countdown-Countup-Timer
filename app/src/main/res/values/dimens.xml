@@ -11,13 +11,11 @@
       cell has 56dp inside it, which is the whole reason the "until" line is reachable
       at 2x1.
 
-      The label range used to be four numbers, a name size and a footer size per band,
-      and each was both a floor and a ceiling. That is what left a 2x1 and a 3x1 — the
-      two sizes most people actually drop — captioned at 10sp with nothing to be done
-      about it. Now WidgetRenderer measures: the floor is the smallest a label may be
-      drawn at all, the ceiling is where growing one stops helping, and everything
-      between is decided by the cell in front of it. 12sp is the floor because a 2x1 has
-      no surplus to grow into and is still the size a label has to be legible at.
+      The label range is a range, not a size per band: the floor is the smallest a label
+      may be drawn at all, the ceiling is where growing one stops helping, and everything
+      between is decided by the cell in front of it, which WidgetRenderer measures. 12sp
+      is the floor because a 2x1 has no surplus to grow into and is still the size a
+      label has to be legible at.
 
       They are dimens rather than literals because both sides need the same numbers:
       styles.xml and widget_preview.xml to declare what a raw inflation shows,

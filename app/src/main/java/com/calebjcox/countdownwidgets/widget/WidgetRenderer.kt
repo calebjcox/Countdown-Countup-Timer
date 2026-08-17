@@ -61,9 +61,9 @@ object WidgetRenderer {
      * answer different questions: whether there is room for a row at all, and how much
      * of the room left over should go to breathing space rather than to the value.
      *
-     * Only the padding now. Each band used to carry a label size as well, which made
-     * the band the answer to a question it cannot see — how large a caption has to be
-     * to read — and pinned a 2x1 and a 3x1 at 10sp. [metricsFor] measures it instead.
+     * Only the padding. A label size per band would make the band the answer to a
+     * question it cannot see — how large a caption has to be to read — so [metricsFor]
+     * measures that against the real cell instead.
      */
     private enum class Density(@DimenRes val padding: Int) {
         COMPACT(padding = R.dimen.widget_padding_compact),
@@ -90,14 +90,13 @@ object WidgetRenderer {
      * box `WidgetValue`'s uniform auto-sizing searches in. 68dp of cell leaves 24dp for
      * the value once a name and a footer are paid for: not much, but a one-row cell
      * that says what it is counting is worth more than a larger number that does not.
-     * The previous set asked for 110dp before showing the footer, which is more than a
-     * one-row cell has ever offered, so the target date was unreachable at every 1-row
-     * size — see issue #11 and the sizes in `DeviceSpec`.
+     * A footer height above what a one-row cell offers makes the target date
+     * unreachable at every 1-row size — see issue #11 and the sizes in `DeviceSpec`.
      *
-     * The widths say how much room a row needs to be worth drawing, and not — as they
-     * once did — what the provider's `minWidth` happens to be. The provider resizes down
-     * to a single cell, so 110dp is not the narrowest cell this can be handed and a width
-     * tracking it would only refuse to answer for the sizes below.
+     * The widths say how much room a row needs to be worth drawing, not what the
+     * provider's `minWidth` happens to be. The provider resizes down to a single cell,
+     * so 110dp is not the narrowest cell this can be handed and a width tracking it
+     * would only refuse to answer for the sizes below.
      *
      * A caption is the row width decides. 92dp is where a name reads: it leaves 80dp
      * inside the compact padding, which is a dozen characters at the 12sp floor. The date
