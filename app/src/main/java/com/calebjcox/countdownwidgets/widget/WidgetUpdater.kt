@@ -3,7 +3,6 @@ package com.calebjcox.countdownwidgets.widget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
-import android.content.res.Configuration
 import android.util.SizeF
 import com.calebjcox.countdownwidgets.data.TimerStore
 import java.time.ZoneId
@@ -46,7 +45,7 @@ object WidgetUpdater {
                 timer = store.timerForWidget(appWidgetId),
                 nowMillis = now,
                 zone = zone,
-                cellDp = cellDp(context, manager, appWidgetId),
+                cells = cellSizes(manager, appWidgetId),
             )
             manager.updateAppWidget(appWidgetId, views)
         }
@@ -57,43 +56,52 @@ object WidgetUpdater {
     }
 
     /**
-     * The content box the launcher is drawing this widget in, or null if it has not
-     * said. Without it the renderer sizes each variant for the smallest cell that can
+     * Every content box the launcher might draw this widget in, or empty if it has not
+     * said. Without them the renderer sizes each variant for the smallest cell that can
      * select it, which is right but leaves text smaller than it needs to be.
      *
-     * The bundle holds a *range*, not a size: the four values bracket the same widget
-     * across both orientations, narrow-and-tall in portrait and wide-and-short in
-     * landscape. Which pair is current is not in the bundle, so it comes from the
-     * configuration.
+     * All of them, not the current one, and that is the point. The bundle describes the
+     * widget in *both* orientations at once, and it does not change when the device
+     * rotates — the same four numbers already covered the new orientation — so
+     * `onAppWidgetOptionsChanged` does not fire and nothing asks this app to redraw.
+     * Picking the orientation that happened to be current at build time therefore left
+     * the other one sized wrong for as long as the `RemoteViews` lived: a widget built
+     * while some app was in landscape came back to the portrait home screen with its
+     * number shrunk to the floor, and stayed that way until the next tick or edit
+     * rebuilt it. Handing the renderer the whole set lets it size each variant for the
+     * cell that selects it, so one object is correct either way up.
      *
-     * Null is normal rather than a failure — the bundle is empty until the host has
-     * measured the widget once. It does not stay empty: `AppWidgetHostView` writes
+     * `OPTION_APPWIDGET_SIZES` is the exact answer and the one hosts have written since
+     * API 31. The min/max quadruple is the fallback for a host that only writes the
+     * legacy keys: it is the same information flattened, so it unflattens back into the
+     * conventional pair — portrait is narrow and tall, landscape wide and short.
+     *
+     * Empty is normal rather than a failure — the bundle holds nothing until the host
+     * has measured the widget once. It does not stay empty: `AppWidgetHostView` writes
      * these values during layout whenever they change, which is what makes
-     * `onAppWidgetOptionsChanged` fire on a resize, a rotation or a grid change, and
-     * what makes it safe to size text for the cell that is really there.
+     * `onAppWidgetOptionsChanged` fire on a resize or a grid change, and what makes it
+     * safe to size text for the cells that are really there.
      */
-    private fun cellDp(
-        context: Context,
-        manager: AppWidgetManager,
-        appWidgetId: Int,
-    ): SizeF? {
-        val options = manager.getAppWidgetOptions(appWidgetId) ?: return null
-        val portrait = context.resources.configuration.orientation !=
-            Configuration.ORIENTATION_LANDSCAPE
-        val width = options.getInt(
-            if (portrait) {
-                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH
-            } else {
-                AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH
-            },
-        )
-        val height = options.getInt(
-            if (portrait) {
-                AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT
-            } else {
-                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT
-            },
-        )
-        return if (width > 0 && height > 0) SizeF(width.toFloat(), height.toFloat()) else null
+    private fun cellSizes(manager: AppWidgetManager, appWidgetId: Int): List<SizeF> {
+        val options = manager.getAppWidgetOptions(appWidgetId) ?: return emptyList()
+
+        // The untyped overload, deprecated since API 33, because the typed one landed
+        // there and this app's minSdk is 31. It is the only reader that works on every
+        // version the app runs on, and there is nothing here worth a version branch.
+        @Suppress("DEPRECATION")
+        val reported = options
+            .getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
+            .orEmpty()
+            .filter { it.width > 0f && it.height > 0f }
+        if (reported.isNotEmpty()) return reported.distinct()
+
+        val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
+        val maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
+        val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+        val maxHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
+        return listOf(minWidth to maxHeight, maxWidth to minHeight)
+            .filter { (width, height) -> width > 0 && height > 0 }
+            .map { (width, height) -> SizeF(width.toFloat(), height.toFloat()) }
+            .distinct()
     }
 }

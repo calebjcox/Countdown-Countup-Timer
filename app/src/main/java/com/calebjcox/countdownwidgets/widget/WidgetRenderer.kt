@@ -21,6 +21,7 @@ import com.calebjcox.countdownwidgets.ui.WidgetConfigActivity
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlin.math.ceil
 
 /**
  * Turns a timer into the `RemoteViews` the launcher draws.
@@ -37,8 +38,15 @@ import java.time.format.FormatStyle
  * variant in [BREAKPOINTS] is handed to the platform at once and the launcher picks
  * whichever best fits the cell it was given. What that cannot answer is how large to
  * draw the text *inside* a variant, because a breakpoint is only the smallest cell that
- * selects it — see [metricsFor], and [build]'s `cellDp` for where the real one comes
+ * selects it — see [metricsFor], and [build]'s `cells` for where the real one comes
  * from.
+ *
+ * Declarative all the way down, which means *per variant*. A launcher reports every
+ * cell it might draw this widget in — portrait and landscape both — and then switches
+ * between them without asking the app again, because rotating changes nothing about the
+ * widget's options. So one cell cannot size the whole `RemoteViews`: each variant is
+ * sized for the cell that will select *it*, and the same object is then correct in
+ * either orientation. See [sizingFor].
  */
 object WidgetRenderer {
 
@@ -102,11 +110,12 @@ object WidgetRenderer {
     )
 
     /**
-     * @param cellDp the content box the launcher is actually drawing this widget in,
-     *   when that is known — from `AppWidgetManager`'s options for a live widget, or
-     *   from the layout a renderer is compositing into. Null falls back to each
-     *   variant's own breakpoint, which is the smallest cell it can be handed and so
-     *   sizes everything for the tightest case it will ever face.
+     * @param cells every content box the launcher might draw this widget in, when that
+     *   is known — from `AppWidgetManager`'s options for a live widget, or from the
+     *   layout a renderer is compositing into. Usually two: the portrait cell and the
+     *   landscape one. A variant no reported cell selects falls back to its own
+     *   breakpoint, which is the smallest cell it can be handed and so sizes it for the
+     *   tightest case it will ever face.
      */
     fun build(
         context: Context,
@@ -114,22 +123,96 @@ object WidgetRenderer {
         timer: Timer?,
         nowMillis: Long,
         zone: ZoneId,
-        cellDp: SizeF? = null,
+        cells: List<SizeF> = emptyList(),
     ): RemoteViews {
         if (timer == null) return unconfigured(context, appWidgetId)
 
         val display = DurationMath.compute(nowMillis, zone, timer.spec)
         // Sampled once so every variant agrees to the millisecond.
         val elapsedRealtime = SystemClock.elapsedRealtime()
+        val sizing = sizingFor(cells)
 
         return RemoteViews(
             BREAKPOINTS.associate { (size, variant) ->
                 size to render(
                     context, appWidgetId, timer, display,
-                    size, cellDp, variant, elapsedRealtime,
+                    size, sizing[size], variant, elapsedRealtime,
                 )
             },
         )
+    }
+
+    /**
+     * Which reported cell each variant should size its text for, keyed by breakpoint.
+     *
+     * A variant is only ever drawn in a cell the launcher picked it for, so the cell to
+     * measure against is the one whose selection lands on that variant — which is a
+     * question only [bestFitBreakpoint] can answer, because the platform's rule is not
+     * "the largest that fits".
+     *
+     * This is the whole fix for text that comes out tiny after the phone has been in
+     * landscape. The options bundle reports both orientations at once and does not
+     * change when the device rotates, so `onAppWidgetOptionsChanged` does not fire and
+     * the app is never asked to redraw. Sizing every variant from whichever cell was
+     * current at build time therefore froze the *other* orientation's text at the wrong
+     * size until the next unrelated update — a phone's landscape row is barely half the
+     * height of its portrait one, so a widget built while an app was in landscape came
+     * back to the home screen with its number at the 11sp floor. Sized per variant, one
+     * `RemoteViews` is right in both.
+     *
+     * Two cells can land on the same variant. Then it takes the smaller of them on each
+     * axis, because the text has to fit whichever one the launcher hands it.
+     */
+    private fun sizingFor(cells: List<SizeF>): Map<SizeF, SizeF> {
+        val sizing = mutableMapOf<SizeF, SizeF>()
+        for (cell in cells) {
+            if (cell.width <= 0f || cell.height <= 0f) continue
+            val breakpoint = bestFitBreakpoint(cell)
+            val known = sizing[breakpoint]
+            sizing[breakpoint] = if (known == null) {
+                cell
+            } else {
+                SizeF(minOf(known.width, cell.width), minOf(known.height, cell.height))
+            }
+        }
+        return sizing
+    }
+
+    /**
+     * The breakpoint whose variant a launcher will draw in a cell of this size.
+     *
+     * A transcription of `RemoteViews.findBestFitLayout`, down to the ceiling in the fit
+     * test and the strict `<` that leaves the earliest of equally distant candidates
+     * winning: among the entries that fit, the one nearest the cell by squared distance,
+     * and the smallest entry by area when nothing fits at all. Reimplemented rather than
+     * reflected into because this runs in the app, and pinned against the platform's own
+     * selection by `WidgetOrientationTest` so the copy cannot drift from the original.
+     */
+    internal fun bestFitBreakpoint(cell: SizeF): SizeF {
+        var best: SizeF? = null
+        var bestSquareDistance = Float.MAX_VALUE
+        for ((size, _) in BREAKPOINTS) {
+            if (!fitsIn(size, cell)) continue
+            val squareDistance = squareDistance(size, cell)
+            if (best == null || squareDistance < bestSquareDistance) {
+                best = size
+                bestSquareDistance = squareDistance
+            }
+        }
+        return best ?: breakpointSizes.minBy { it.width * it.height }
+    }
+
+    /** The breakpoint sizes, in declaration order. Shared with the tests that pin them. */
+    internal val breakpointSizes: List<SizeF> = BREAKPOINTS.map { it.first }
+
+    private fun fitsIn(size: SizeF, bounds: SizeF): Boolean =
+        ceil(size.width.toDouble()) <= ceil(bounds.width.toDouble()) &&
+            ceil(size.height.toDouble()) <= ceil(bounds.height.toDouble())
+
+    private fun squareDistance(size: SizeF, bounds: SizeF): Float {
+        val dx = size.width - bounds.width
+        val dy = size.height - bounds.height
+        return dx * dx + dy * dy
     }
 
     private fun render(

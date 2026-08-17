@@ -231,7 +231,7 @@ class WidgetSpacingTest {
             timer = timer,
             nowMillis = nowMillis,
             zone = zone,
-            cellDp = SizeF(widthDp, heightDp),
+            cells = listOf(SizeF(widthDp, heightDp)),
         )
         val view = VariantSelection
             .forSize(views, context, SizeF(widthDp, heightDp))
