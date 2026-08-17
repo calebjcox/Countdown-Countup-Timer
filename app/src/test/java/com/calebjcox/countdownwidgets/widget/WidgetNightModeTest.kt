@@ -152,7 +152,7 @@ class WidgetNightModeTest {
         timer = of,
         nowMillis = nowMillis,
         zone = zone,
-        cellDp = CELL,
+        cells = listOf(CELL),
     )
 
     /** The variant a launcher would pick for [CELL], inflated in whatever theme is set. */
