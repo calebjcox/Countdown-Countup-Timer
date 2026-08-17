@@ -30,6 +30,8 @@ class TimerBackupTest {
                 labelStyle = LabelStyle.LONG,
                 textTheme = TextTheme.DARK,
                 showBackground = true,
+                showName = false,
+                showTarget = true,
             ),
             timer(
                 id = "launch",
@@ -40,6 +42,8 @@ class TimerBackupTest {
                 labelStyle = LabelStyle.SHORT,
                 textTheme = TextTheme.LIGHT,
                 showBackground = false,
+                showName = true,
+                showTarget = false,
             ),
         )
 
@@ -120,6 +124,20 @@ class TimerBackupTest {
     }
 
     @Test
+    fun `a backup made before the row toggles existed keeps both rows`() {
+        // The keys are simply absent from such a file, and absent has to mean what the
+        // timer was doing when it was exported: showing its name and its target date.
+        val decoded = TimerBackup.decode(
+            """[{"id":"christmas","name":"Christmas","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"]}]""",
+        )
+
+        val timer = (decoded as TimerBackup.Result.Ok).timers.single()
+        assertTrue(timer.showName)
+        assertTrue(timer.showTarget)
+    }
+
+    @Test
     fun `the suggested file name carries the date`() {
         assertEquals(
             "countdowns-backup-2026-08-09.json",
@@ -139,6 +157,8 @@ class TimerBackupTest {
         labelStyle: LabelStyle = Timer.DEFAULT_LABEL_STYLE,
         textTheme: TextTheme = Timer.DEFAULT_TEXT_THEME,
         showBackground: Boolean = Timer.DEFAULT_SHOW_BACKGROUND,
+        showName: Boolean = Timer.DEFAULT_SHOW_NAME,
+        showTarget: Boolean = Timer.DEFAULT_SHOW_TARGET,
     ) = Timer(
         id = id,
         name = name,
@@ -146,5 +166,7 @@ class TimerBackupTest {
         labelStyle = labelStyle,
         textTheme = textTheme,
         showBackground = showBackground,
+        showName = showName,
+        showTarget = showTarget,
     )
 }

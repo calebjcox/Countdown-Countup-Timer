@@ -186,6 +186,20 @@
                 android:textAppearance="?attr/textAppearanceTitleSmall" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/show_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/show_name" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/show_target"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/show_target" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/long_labels"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -262,6 +276,14 @@
                     android:gravity="center"
                     android:orientation="vertical"
                     android:padding="20dp">
+
+                    <!-- Same three rows the widget draws, in the same order. -->
+                    <TextView
+                        android:id="@+id/preview_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingBottom="4dp"
+                        android:textAppearance="?attr/textAppearanceBodySmall" />
 
                     <TextView
                         android:id="@+id/preview_value"

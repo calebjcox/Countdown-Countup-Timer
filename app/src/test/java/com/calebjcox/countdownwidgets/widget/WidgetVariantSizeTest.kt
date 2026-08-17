@@ -101,6 +101,19 @@ class WidgetVariantSizeTest {
     }
 
     @Test
+    fun `a row switched off stays off on a cell with room for it`() {
+        // The cell from the first test, which shows all three rows by default. What the
+        // toggles say is not "if it fits" — it is that the row is unwanted, so the size
+        // that would otherwise draw it is exactly where they have to hold.
+        assertRows(140f, 100f, name = false, footer = true, timer = timer.copy(showName = false))
+        assertRows(140f, 100f, name = true, footer = false, timer = timer.copy(showTarget = false))
+        assertRows(
+            140f, 100f, name = false, footer = false,
+            timer = timer.copy(showName = false, showTarget = false),
+        )
+    }
+
+    @Test
     fun `a cell below every breakpoint falls back to the smallest variant`() {
         // Not reachable through minWidth/minHeight, but findBestFitLayout has a
         // documented answer for it and it should be the least demanding variant rather
@@ -108,7 +121,13 @@ class WidgetVariantSizeTest {
         assertRows(90f, 30f, name = false, footer = false)
     }
 
-    private fun assertRows(widthDp: Float, heightDp: Float, name: Boolean, footer: Boolean) {
+    private fun assertRows(
+        widthDp: Float,
+        heightDp: Float,
+        name: Boolean,
+        footer: Boolean,
+        timer: Timer = this.timer,
+    ) {
         val views = WidgetRenderer.build(
             context = context,
             appWidgetId = 1,

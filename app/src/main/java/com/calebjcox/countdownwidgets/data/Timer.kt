@@ -23,6 +23,13 @@ data class Timer(
     /** Only consulted when [showBackground] is false; see WidgetPalette. */
     val textTheme: TextTheme = DEFAULT_TEXT_THEME,
     val showBackground: Boolean = DEFAULT_SHOW_BACKGROUND,
+    /**
+     * Whether the two rows either side of the value are wanted at all. A cell too
+     * small for a row drops it regardless — these say the row is unwanted even where
+     * there is room, which is a different question and the only one the user answers.
+     */
+    val showName: Boolean = DEFAULT_SHOW_NAME,
+    val showTarget: Boolean = DEFAULT_SHOW_TARGET,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put(KEY_ID, id)
@@ -33,6 +40,8 @@ data class Timer(
         put(KEY_LABEL_STYLE, labelStyle.name)
         put(KEY_TEXT_THEME, textTheme.name)
         put(KEY_SHOW_BACKGROUND, showBackground)
+        put(KEY_SHOW_NAME, showName)
+        put(KEY_SHOW_TARGET, showTarget)
     }
 
     companion object {
@@ -44,6 +53,11 @@ data class Timer(
         val DEFAULT_TEXT_THEME = TextTheme.AUTO
         const val DEFAULT_SHOW_BACKGROUND = false
 
+        // Both rows on by default, which is also what a timer saved before these
+        // existed was showing — so an upgrade changes nothing anyone can see.
+        const val DEFAULT_SHOW_NAME = true
+        const val DEFAULT_SHOW_TARGET = true
+
         private const val KEY_ID = "id"
         private const val KEY_NAME = "name"
         private const val KEY_TARGET = "target"
@@ -52,6 +66,8 @@ data class Timer(
         private const val KEY_LABEL_STYLE = "labelStyle"
         private const val KEY_TEXT_THEME = "textTheme"
         private const val KEY_SHOW_BACKGROUND = "showBackground"
+        private const val KEY_SHOW_NAME = "showName"
+        private const val KEY_SHOW_TARGET = "showTarget"
 
         fun newId(): String = UUID.randomUUID().toString()
 
@@ -86,6 +102,8 @@ data class Timer(
                 textTheme = enumOf<TextTheme>(json.optString(KEY_TEXT_THEME))
                     ?: DEFAULT_TEXT_THEME,
                 showBackground = json.optBoolean(KEY_SHOW_BACKGROUND, DEFAULT_SHOW_BACKGROUND),
+                showName = json.optBoolean(KEY_SHOW_NAME, DEFAULT_SHOW_NAME),
+                showTarget = json.optBoolean(KEY_SHOW_TARGET, DEFAULT_SHOW_TARGET),
             )
         }.getOrNull()
 
