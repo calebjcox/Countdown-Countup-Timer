@@ -101,6 +101,53 @@ is looking at it, and the device is awake then. In deep doze an update can be
 deferred; the half-hourly `updatePeriodMillis` is a system-managed backstop that
 survives reboots, and unlocking the phone flushes pending alarms.
 
+## What fits in a cell
+
+The widget is dropped at 2x1 and can be dragged down to **1x1**, which is a real size
+rather than a courtesy: on a phone a single cell is about 64dp of content box, and on a
+tablet it is 105 to 130dp — wider than a phone's 2x1, which is why a 1x1 gets asked for
+there first.
+
+So the widget is not one layout that shrinks. Every size band is built at once, handed
+to the launcher together, and the launcher picks the one nearest the cell it is giving
+out. Which rows appear is decided by width, because width is what a row needs:
+
+| Content box | Shows |
+| --- | --- |
+| under 92dp | the countdown |
+| 92dp and up | the countdown and the timer's name |
+| 110dp and up | both, and the date it counts to |
+
+Height then decides how large each of those is drawn, measured against the real cell
+rather than the band — see `WidgetRenderer.metricsFor`.
+
+### Wrapping
+
+One cell is not wide enough for `2d 16h 46m` on one line at any size worth reading, so
+with **Let the countdown use more than one line** on — it is, by default — the value may
+break across up to three lines where that draws it larger:
+
+```
+2d 16h 46m        2d
+                  16h
+     ↓            46m
+```
+
+It is permission rather than instruction. Each candidate number of lines is measured the
+way the platform's own auto-sizing measures it, and the extra line is taken only if it
+comes back bigger, or if it rescues a value that was being cut off. On a 2x1 with room
+for its number nothing changes, which is what lets the setting default to on.
+
+The cut-off case is worth spelling out, because it was a bug rather than a preference.
+The value row has no ellipsis. Once auto-sizing hits its floor and the text still needs a
+second line, a `TextView` held to one draws that line and silently discards the rest — so
+a 2x1 counting `2 years, 0 months, 8 days` was reading `2 years, 0 months, 8` with
+nothing to say it had stopped. Wrapping is what puts the rest of it back.
+
+Two things it will not do. It never breaks inside a unit — `25d` has no space in it, and
+a line breaker left alone will happily put `25` above `d` — and it never takes height
+from the name or the date, which are sized first and against a single line.
+
 ## Reading on a wallpaper
 
 By default a widget has no background of its own — the text sits straight on the
@@ -301,7 +348,8 @@ successful is the one outcome worth ruling out. Debug builds need none of them.
 Long-press an empty spot on the home screen → **Widgets** → **Countdowns**, then
 drag it out. You will be asked which timer it should show. Tapping a widget opens
 that timer for editing; long-pressing offers **reconfigure** to point it at a
-different one.
+different one, and the resize handles go down to one cell — see
+[what fits in a cell](#what-fits-in-a-cell).
 
 Timers and widgets are separate: one timer can drive several widgets, deleting a
 widget leaves the timer alone, and deleting a timer leaves its widgets asking for a

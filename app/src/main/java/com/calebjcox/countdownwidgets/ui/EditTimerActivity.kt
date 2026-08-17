@@ -57,6 +57,7 @@ class EditTimerActivity : AppCompatActivity() {
     private var showBackground = Timer.DEFAULT_SHOW_BACKGROUND
     private var showName = Timer.DEFAULT_SHOW_NAME
     private var showTarget = Timer.DEFAULT_SHOW_TARGET
+    private var wrapValue = Timer.DEFAULT_WRAP_VALUE
 
     /** Guards the chip and toggle listeners while [syncUi] writes their state. */
     private var syncing = false
@@ -109,6 +110,7 @@ class EditTimerActivity : AppCompatActivity() {
         showBackground = timer.showBackground
         showName = timer.showName
         showTarget = timer.showTarget
+        wrapValue = timer.wrapValue
     }
 
     private fun restore(state: Bundle) {
@@ -121,6 +123,7 @@ class EditTimerActivity : AppCompatActivity() {
         showBackground = state.getBoolean(STATE_SHOW_BACKGROUND, showBackground)
         showName = state.getBoolean(STATE_SHOW_NAME, showName)
         showTarget = state.getBoolean(STATE_SHOW_TARGET, showTarget)
+        wrapValue = state.getBoolean(STATE_WRAP_VALUE, wrapValue)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -134,6 +137,7 @@ class EditTimerActivity : AppCompatActivity() {
         outState.putBoolean(STATE_SHOW_BACKGROUND, showBackground)
         outState.putBoolean(STATE_SHOW_NAME, showName)
         outState.putBoolean(STATE_SHOW_TARGET, showTarget)
+        outState.putBoolean(STATE_WRAP_VALUE, wrapValue)
     }
 
     // -------------------------------------------------------------------- ui
@@ -211,6 +215,14 @@ class EditTimerActivity : AppCompatActivity() {
             showTarget = isChecked
             refresh()
         }
+        // Nothing in the preview moves when this changes — the card is as wide as the
+        // screen and a line only breaks where there is no width for it — but it is
+        // still read back through refresh() so every switch here behaves the same way.
+        binding.wrapValue.setOnCheckedChangeListener { _, isChecked ->
+            if (syncing) return@setOnCheckedChangeListener
+            wrapValue = isChecked
+            refresh()
+        }
         binding.save.setOnClickListener { save() }
     }
 
@@ -242,6 +254,7 @@ class EditTimerActivity : AppCompatActivity() {
         binding.showBackground.isChecked = showBackground
         binding.showName.isChecked = showName
         binding.showTarget.isChecked = showTarget
+        binding.wrapValue.isChecked = wrapValue
         binding.textThemeGroup.check(
             when (textTheme) {
                 TextTheme.AUTO -> R.id.text_theme_auto
@@ -380,6 +393,7 @@ class EditTimerActivity : AppCompatActivity() {
                 showBackground = showBackground,
                 showName = showName,
                 showTarget = showTarget,
+                wrapValue = wrapValue,
             ),
         )
         WidgetUpdater.updateForTimer(this, id)
@@ -417,6 +431,7 @@ class EditTimerActivity : AppCompatActivity() {
         private const val STATE_SHOW_BACKGROUND = "showBackground"
         private const val STATE_SHOW_NAME = "showName"
         private const val STATE_SHOW_TARGET = "showTarget"
+        private const val STATE_WRAP_VALUE = "wrapValue"
 
         fun editIntent(context: Context, timerId: String?): Intent =
             Intent(context, EditTimerActivity::class.java)

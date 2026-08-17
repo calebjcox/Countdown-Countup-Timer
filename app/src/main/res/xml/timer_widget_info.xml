@@ -5,12 +5,34 @@
   changes. This half-hourly system-managed update costs nothing extra — it never
   wakes the device, and it is re-registered across reboots by the framework — but it
   guarantees a widget cannot stay wrong indefinitely if an alarm is ever lost.
+
+  Three different sizes are declared here, and they answer three different questions.
+
+  targetCellWidth / targetCellHeight is the size the widget is *dropped* at: two cells
+  by one, which is where all three rows fit and what the picker preview shows. It is
+  unchanged, because it is still the size most people want.
+
+  minResizeWidth / minResizeHeight is how far it can then be dragged in, and 40dp is a
+  single cell — the same figure the platform's own cell formula gives for one column.
+  There is no cell-counted spelling of this: Android 12 gave the *target* size cell
+  attributes and left the resize floor in dp, so dp is what it is said in. A single
+  cell is a real size on a phone, about 64dp of content box, and on a tablet it is
+  wider than a phone's 2x1 — which is why a 1x1 was asked for there first.
+  WidgetRenderer has breakpoints for both: a narrow cell drops to the rows it has the
+  width to draw, and the number wraps into the height that saves.
+
+  minWidth / minHeight stay at the 2x1 they always were. Those are the *default* size
+  wherever targetCellWidth is not understood, so dropping them to 40dp to say the same
+  thing twice would have moved the drop size to 1x1 on those hosts. A minResize below
+  a minWidth is exactly the shape the platform documents for this.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="com.calebjcox.countdownwidgets.ui.WidgetConfigActivity"
     android:description="@string/widget_description"
     android:initialLayout="@layout/widget_timer_wallpaper"
     android:minHeight="40dp"
+    android:minResizeHeight="40dp"
+    android:minResizeWidth="40dp"
     android:minWidth="110dp"
     android:previewLayout="@layout/widget_preview"
     android:resizeMode="horizontal|vertical"
