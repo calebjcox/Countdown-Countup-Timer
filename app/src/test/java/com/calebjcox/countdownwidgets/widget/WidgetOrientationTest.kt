@@ -216,7 +216,7 @@ class WidgetOrientationTest {
     @Test
     fun `the best-fit rule matches the platform's own selection`() {
         for (reported in listOf(emptyList(), listOf(BIG_PORTRAIT, BIG_LANDSCAPE))) {
-            val sizes = WidgetRenderer.variantSizes(reported)
+            val sizes = WidgetRenderer.variantSizes(reported, context.resources)
             val probe = RemoteViews(
                 sizes.associateWith { size ->
                     RemoteViews(context.packageName, R.layout.widget_timer).apply {

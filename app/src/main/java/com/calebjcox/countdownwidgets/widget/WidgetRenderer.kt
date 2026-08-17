@@ -166,7 +166,7 @@ object WidgetRenderer {
         val display = DurationMath.compute(nowMillis, zone, timer.spec)
         // Sampled once so every variant agrees to the millisecond.
         val elapsedRealtime = SystemClock.elapsedRealtime()
-        val variants = variantsFor(cells)
+        val variants = variantsFor(cells, context.resources)
         val sizing = sizingFor(cells, variants.keys)
 
         return RemoteViews(
@@ -204,15 +204,14 @@ object WidgetRenderer {
      * apart — every cell bigger than the whole layout fits every threshold, so both
      * orientations land on [ROOMY].
      *
-     * Then [LARGE], for the sizes a host draws without having reported them.
+     * Then [coverage], for the sizes a host draws without having reported them.
      *
      * **The rule for any key that is not a threshold: it goes in at or above [ROOMY], or
      * it is a cell the host reported.** A key below [ROOMY] can sit nearer to a box than
      * the threshold of that box's own region, and would then take rows away from a cell
      * with the room to draw them. At or above [ROOMY] every key carries the topmost
      * variant, and anything that can select it is at least as large and so carries it too,
-     * which is why every entry of [LARGE] clears it. A reported cell is the deliberate
-     * exception: a box
+     * which is why [coverage] filters. A reported cell is the deliberate exception: a box
      * the host draws *without* reporting, sitting just above a threshold the reported cell
      * is just below, takes the reported cell's key and so its rows. That is the wrong
      * answer in the conservative direction — fewer rows, never more — and it lasts until
@@ -221,12 +220,12 @@ object WidgetRenderer {
      * Thresholds first so the cap can only ever drop coverage, and reported cells before
      * coverage because they are the ones that get drawn.
      */
-    private fun variantsFor(cells: List<SizeF>): Map<SizeF, Variant> {
+    private fun variantsFor(cells: List<SizeF>, resources: Resources): Map<SizeF, Variant> {
         val reported = cells
             .filter { it.width > 0f && it.height > 0f }
             .distinct()
             .sortedByDescending { it.width * it.height }
-        return (THRESHOLDS + reported + LARGE)
+        return (THRESHOLDS + reported + coverage(resources))
             .distinct()
             .take(MAX_VARIANTS)
             .associateWith { variantFor(it) }
@@ -239,18 +238,48 @@ object WidgetRenderer {
      *
      * Reached in two situations, both brief: before the first layout has written the
      * widget's options, and part-way through a resize drag, where the host redraws at
-     * sizes it only reports at the end. Shapes rather than a ladder of areas, because the
-     * boxes they stand in for differ in shape: a wide, short landscape cell, a tall
-     * portrait one, a one-column tower. Every one of them clears [ROOMY], which is what
-     * keeps them from taking rows off a cell that has room for them.
+     * sizes it only reports at the end.
+     *
+     * Measured off the display rather than written down, because the largest a cell can
+     * be is the screen it is on, and the screen is the one thing here that can be asked.
+     * A list of sizes would be a list of guesses about other people's devices, correct
+     * until a launcher changed its grid or an OS update changed the cells, and wrong after
+     * that with nothing to say so.
+     *
+     * Fractions of the screen rather than the screen itself, and the fractions are what a
+     * home screen is shaped like. A widget occupies whole cells of a grid four to six
+     * columns wide, inside the launcher's own margins, so a large one is *most* of the
+     * width and never all of it — [SHORT_EDGE] — while the height is whatever number of
+     * rows it was dragged to, which is why [DEPTHS] samples the long edge three times
+     * rather than once. Both orientations, because that is what the boxes really differ
+     * in: a wide, short landscape cell is nothing like the tall portrait one on the same
+     * phone.
+     *
+     * Filtered to those clearing [ROOMY]: a key below it can take rows off a cell that has
+     * room to draw them, which is the rule [variantsFor] states. On a display too small
+     * for any of them the list comes back empty, and the thresholds alone are the map.
      */
-    private val LARGE = listOf(
-        SizeF(130f, 220f),
-        SizeF(300f, 130f),
-        SizeF(300f, 220f),
-        SizeF(300f, 320f),
-        SizeF(300f, 450f),
-    )
+    private fun coverage(resources: Resources): List<SizeF> {
+        val metrics = resources.displayMetrics
+        val width = metrics.widthPixels / metrics.density
+        val height = metrics.heightPixels / metrics.density
+        val across = minOf(width, height) * SHORT_EDGE
+        val down = maxOf(width, height)
+        return DEPTHS
+            .flatMap { listOf(SizeF(across, down * it), SizeF(down * it, across)) }
+            .filter { covers(it, ROOMY) }
+    }
+
+    /**
+     * How much of the screen's short edge a widget spanning the grid comes to, once the
+     * launcher's margins and the gaps between cells are taken off. Nine tenths is close
+     * enough: an entry has only to *fit* the box that selects it, and one that overshoots
+     * the width by a hair fits nothing and covers nothing.
+     */
+    private const val SHORT_EDGE = 0.9f
+
+    /** The long edge sampled at a tall widget, a middling one and a short one. */
+    private val DEPTHS = listOf(0.9f, 0.6f, 0.3f)
 
     /**
      * How many entries a size map may hold, which is the platform's number rather than
@@ -352,7 +381,8 @@ object WidgetRenderer {
      * selection: the thing to check a transcription against is the map the widget really
      * ships, not a list written out beside it.
      */
-    internal fun variantSizes(cells: List<SizeF>): List<SizeF> = variantsFor(cells).keys.toList()
+    internal fun variantSizes(cells: List<SizeF>, resources: Resources): List<SizeF> =
+        variantsFor(cells, resources).keys.toList()
 
     private fun fitsIn(size: SizeF, bounds: SizeF): Boolean =
         ceil(size.width.toDouble()) <= ceil(bounds.width.toDouble()) &&
