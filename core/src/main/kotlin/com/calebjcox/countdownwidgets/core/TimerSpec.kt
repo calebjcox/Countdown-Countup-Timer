@@ -41,8 +41,15 @@ data class TimerSpec(
         val DEFAULT_DATE_FIELDS: Set<TimeField> =
             setOf(TimeField.YEAR, TimeField.MONTH, TimeField.DAY)
 
+        /**
+         * The units a time of day exists to express. Seconds are deliberately not
+         * among them: they turn the value into a `Chronometer`'s `H:MM:SS`, which is
+         * a choice worth making rather than one to arrive at by default.
+         */
+        val DEFAULT_CLOCK_FIELDS: Set<TimeField> = setOf(TimeField.HOUR, TimeField.MINUTE)
+
         val DEFAULT_DATE_TIME_FIELDS: Set<TimeField> =
-            setOf(TimeField.DAY, TimeField.HOUR, TimeField.MINUTE, TimeField.SECOND)
+            DEFAULT_DATE_FIELDS + DEFAULT_CLOCK_FIELDS
 
         /** Builds a spec, repairing any combination the UI or stored data can present. */
         fun of(
