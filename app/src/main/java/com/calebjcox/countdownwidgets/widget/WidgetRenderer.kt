@@ -88,8 +88,8 @@ object WidgetRenderer {
      *
      * The heights are derived, not guessed. A label costs its line height — about 16dp
      * at the 12sp floor — the root costs twice its padding, and whatever remains is the
-     * box `WidgetValue`'s uniform auto-sizing searches in. 68dp of cell leaves 24dp for
-     * the value once a name and a footer are paid for: not much, but a one-row cell
+     * box the value's own search works in. 68dp of cell leaves 24dp for the value once
+     * a name and a footer are paid for: not much, but a one-row cell
      * that says what it is counting is worth more than a larger number that does not.
      * A footer height above what a one-row cell offers makes the target date
      * unreachable at every 1-row size — see issue #11 and the sizes in `DeviceSpec`.
@@ -294,19 +294,20 @@ object WidgetRenderer {
             cellDp = cellDp,
             density = density,
             text = text,
-            maxValueLines = if (timer.wrapValue) MAX_VALUE_LINES else 1,
+            maxValueLines = if (timer.wrapValue) maxValueLines(text.value) else 1,
         )
 
-        // Pixels rather than sp for the labels, because the sizes were read from
-        // resources declared in sp: getDimension has applied the display's density and
-        // the user's font scale by the time they are used, so passing them on as sp
-        // would apply both twice.
+        // Pixels rather than sp throughout, because the sizes were read from resources
+        // declared in sp: getDimension has applied the display's density and the user's
+        // font scale by the time they are used, so passing them on as sp would apply
+        // both twice.
         //
-        // Deliberately not the value or the ticker: an explicit text size on those
-        // switches off the uniform auto-sizing their bounded slot exists to serve. What
-        // they get instead is the slot itself.
+        // The value is set and the ticker is not, which is the one asymmetry between the
+        // two rows: a `Chronometer` rewrites its own text without this app, so it keeps
+        // the auto-sizing that can follow it. See the WidgetValue styles.
         views.setTextViewTextSize(R.id.widget_name, TypedValue.COMPLEX_UNIT_PX, metrics.labelText)
         views.setTextViewTextSize(R.id.widget_footer, TypedValue.COMPLEX_UNIT_PX, metrics.labelText)
+        views.setTextViewTextSize(R.id.widget_value, TypedValue.COMPLEX_UNIT_PX, metrics.valueText)
         setValueBox(views, metrics.valueHeight, metrics.valueLines)
 
         // Only on the wallpaper, where the choice depends on the wallpaper itself and
@@ -370,10 +371,15 @@ object WidgetRenderer {
     private data class Text(val value: String, val name: String?, val footer: String?)
 
     /**
-     * What [render] has to set: the value's box and how many lines it may use inside
-     * it, and the size both labels share.
+     * What [render] has to set: the value's box, how many lines it may use inside it and
+     * how large to draw it, and the size both labels share.
      */
-    private data class Metrics(val valueHeight: Int, val valueLines: Int, val labelText: Float)
+    private data class Metrics(
+        val valueHeight: Int,
+        val valueLines: Int,
+        val valueText: Float,
+        val labelText: Float,
+    )
 
     /**
      * How large to draw each row on a cell of this size.
@@ -431,7 +437,8 @@ object WidgetRenderer {
         val scale = resources.displayMetrics.density
         val padding = resources.getDimensionPixelSize(density.padding)
         val cellHeight = ((cellDp?.height ?: breakpoint.height) * scale).toInt()
-        val widthPx = cellDp?.let { (it.width * scale).toInt() - 2 * padding } ?: 0
+        val cellWidth = ((cellDp?.width ?: breakpoint.width) * scale).toInt()
+        val widthPx = cellWidth - 2 * padding
         val availablePx = cellHeight - 2 * padding
 
         val smallest = resources.getDimension(R.dimen.widget_value_text_min)
@@ -445,16 +452,16 @@ object WidgetRenderer {
         fun reserved(valueSize: Float): Int =
             labelCount * lineHeightPx(maxOf(floor, valueSize * LABEL_SHARE))
 
-        // Nothing to measure against: the cell's width is not known yet, or there is no
-        // text to measure. Hand back the labels' floor and the largest box that can ever
-        // be useful, bounded by the cell, and leave the rest to the auto-sizing in the
-        // launcher's own process.
-        if (widthPx <= 0 || text.value.isEmpty()) {
+        // No text to measure. Nothing below has an answer for that, and neither does a
+        // widget: hand back a row at the floor and let a caller with something to draw
+        // ask again.
+        if (text.value.isEmpty()) {
             val height = (availablePx - labelCount * lineHeightPx(floor))
                 .coerceIn(lineHeightPx(smallest, bold = true), lineHeightPx(largest, bold = true))
-            return Metrics(height, 1, floor)
+            return Metrics(height, 1, smallest, floor)
         }
 
+        val step = spStep(resources)
         val box = valueBox(
             resources = resources,
             text = text.value,
@@ -463,16 +470,22 @@ object WidgetRenderer {
             reserved = ::reserved,
             maxLines = maxValueLines,
             smallestPx = smallest,
-            largestPx = valueCeiling(
-                text = text.value,
-                widthPx = widthPx,
-                availablePx = availablePx,
-                maxLines = maxValueLines,
-                labelCount = labelCount,
-                smallestPx = smallest,
-                largestPx = largest,
-                step = spStep(resources),
-            ),
+            largestPx = largest,
+            // Per line count rather than once for the most it may use: a value allowed
+            // six lines is allowed a size six lines' worth larger, and starting the
+            // one-line search from there is a hundred layouts spent ruling that out.
+            ceilingFor = { lines ->
+                valueCeiling(
+                    text = text.value,
+                    widthPx = widthPx,
+                    availablePx = availablePx,
+                    maxLines = lines,
+                    labelCount = labelCount,
+                    smallestPx = smallest,
+                    largestPx = largest,
+                    step = step,
+                )
+            },
         )
         val label = labelSize(
             resources = resources,
@@ -483,7 +496,7 @@ object WidgetRenderer {
             floorPx = floor,
             labelCount = labelCount,
         )
-        return Metrics(box.height, box.lines, label)
+        return Metrics(box.height, box.lines, box.textSize, label)
     }
 
     /**
@@ -573,8 +586,7 @@ object WidgetRenderer {
 
     /**
      * How many lines the value is drawn on, how tall that leaves its box, and the size
-     * the launcher's own auto-sizing will settle on inside it — which the labels beside
-     * it are then measured against.
+     * it is drawn at — which the labels beside it are then measured against.
      *
      * The height is not the room available but the room *taken*, so that a cell with
      * more height than the text needs turns the difference into margin around all three
@@ -614,19 +626,21 @@ object WidgetRenderer {
         maxLines: Int,
         smallestPx: Float,
         largestPx: Float,
+        ceilingFor: (Int) -> Float,
     ): ValueBox {
         val floor = lineHeightPx(smallestPx, bold = true)
 
         var best =
-            fitted(resources, text, widthPx, availablePx, reserved, 1, smallestPx, largestPx)
+            fitted(resources, text, widthPx, availablePx, reserved, 1, smallestPx, ceilingFor(1))
         // Two cases where nothing above one line can win, both worth not measuring: a
-        // value already at the ceiling has nowhere larger to go and is whole by
+        // value already at the resource ceiling has nowhere larger to go and is whole by
         // definition, and a value with no space in it has nowhere to break, so
         // [breaksAtSpaces] would turn down every wrapped candidate in turn.
         if (best.textSize < largestPx && text.any { it.isWhitespace() }) {
             for (lines in 2..maxLines) {
                 val candidate = fitted(
-                    resources, text, widthPx, availablePx, reserved, lines, smallestPx, largestPx,
+                    resources, text, widthPx, availablePx, reserved, lines, smallestPx,
+                    ceilingFor(lines),
                 )
                 val bigger = candidate.textSize > best.textSize
                 val rescued =
@@ -639,14 +653,26 @@ object WidgetRenderer {
     }
 
     /**
-     * How far the value may wrap when the timer allows it.
+     * How far [text] may wrap when the timer allows it: a line for each thing it can be
+     * broken into, which is one per run of non-space characters.
      *
-     * Three because that is where a countdown stops reading as a number: `2d 16h 46m`
-     * over three lines is still one value seen at a glance, and the units it is made of
-     * are three often enough that a fourth line would be spent splitting a group rather
-     * than separating one. Height bounds it long before this does on most cells.
+     * Not a policy so much as the arithmetic of [breaksAtSpaces]. Every line has to end
+     * at a space, so a value can never occupy more lines than it has words, and any
+     * smaller bound is a cell being told to stop short of what its height could carry.
+     * `2d 16h 46m` gets three, one per unit; `11 months, 3 weeks, 4 days` gets six,
+     * because the spelled-out form is two words per unit and a number above its own unit
+     * name is a fine place for a small widget to break; `25d` gets one and never
+     * consults any of this.
+     *
+     * Height is what really decides, and on all but the tallest cells it decides long
+     * before this does — see [valueBox], which takes the extra line only where the extra
+     * line draws the number larger.
      */
-    private const val MAX_VALUE_LINES = 3
+    private fun maxValueLines(text: String): Int =
+        text.split(WHITESPACE).count { it.isNotEmpty() }.coerceAtLeast(1)
+
+    /** Any run of it, so the two spaces before a ticking clock count once. */
+    private val WHITESPACE = Regex("\\s+")
 
     /**
      * One candidate for the value row: the size it settles on, what that occupies, and
@@ -668,16 +694,16 @@ object WidgetRenderer {
     )
 
     /**
-     * The size uniform auto-sizing will settle on for [text] given [maxLines] lines of a
-     * [widthPx] box inside [availablePx] of height, and the height the result occupies.
+     * The size the value settles on for [text] given [maxLines] lines of a [widthPx] box
+     * inside [availablePx] of height, and the height the result occupies.
      *
      * Deliberately the same search `TextView.autoSizeText` runs, laying each candidate
      * out with the same unbounded `StaticLayout` and rejecting it on the same two counts
      * — too many lines, or too tall — with [breaksAtSpaces] added as a third of our own.
-     * Predicting the outcome rather than leaving the box at the cell's full height is
-     * what keeps the rows together: the box has to be the height of the text that will
-     * be in it, and only this can say what that is before the launcher inflates
-     * anything.
+     * That third rule is why the search is here rather than left to the view: it is the
+     * one a box cannot express, so a `TextView` searching the same range would answer
+     * differently and answer wrong. Running it here also settles the box, which has to
+     * be the height of the text that will be in it for the rows to stay together.
      *
      * The height a candidate is measured against is the cell's less what [reserved]
      * holds back for the labels at *that* size, because their size follows the value's:
@@ -728,9 +754,15 @@ object WidgetRenderer {
      * about the box. `StaticLayout` breaks between words where it can and *inside* one
      * where it must, which is right for prose and wrong for this: `25d` on a tall
      * one-cell widget has no space to break at, so the largest size that "fits" three
-     * lines is one that fits `25` on the first and `d` on the second. A unit and its
-     * number are one word here even when the font disagrees. Rejecting the size instead
-     * of the wrap is what sends the search back down to where `25d` fits a line whole.
+     * lines is one that fits `25` on the first and `d` on the second. Rejecting the size
+     * instead of the wrap is what sends the search back down to where `25d` fits a line
+     * whole.
+     *
+     * A space is a break either way, so this says nothing about a number and a unit
+     * *name*: `3` above `weeks,` is a line ending where a reader would end it, and on a
+     * cell narrow enough to be asking the question it is the break that keeps the text
+     * large. Only the abbreviated form makes the two one word, and that is the font's
+     * doing rather than a rule here.
      */
     private fun breaksAtSpaces(layout: StaticLayout, text: String): Boolean =
         (0 until layout.lineCount - 1).all { text[layout.getLineEnd(it) - 1].isWhitespace() }
@@ -888,8 +920,9 @@ object WidgetRenderer {
             cellDp = cellDp,
             density = variant.density,
             text = Text(value = prompt, name = null, footer = null),
-            maxValueLines = MAX_VALUE_LINES,
+            maxValueLines = maxValueLines(prompt),
         )
+        views.setTextViewTextSize(R.id.widget_value, TypedValue.COMPLEX_UNIT_PX, metrics.valueText)
         setValueBox(views, metrics.valueHeight, metrics.valueLines)
         views.setViewVisibility(R.id.widget_name, View.GONE)
         views.setViewVisibility(R.id.widget_ticker, View.GONE)

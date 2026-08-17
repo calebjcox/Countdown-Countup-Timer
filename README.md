@@ -144,13 +144,18 @@ number's expense.
 
 One cell is not wide enough for `2d 16h 46m` on one line at any size worth reading, so
 with **Let the countdown use more than one line** on — it is, by default — the value may
-break across up to three lines where that draws it larger:
+break across as many lines as it has words, where that draws it larger:
 
 ```
 2d 16h 46m        2d
                   16h
      ↓            46m
 ```
+
+A line per word and no fewer, because every line ends at a space (see below) and a value
+therefore cannot occupy more lines than that. Abbreviated units give three lines here and
+spelled-out ones give six, which is the point: `11 months, 3 weeks, 4 days` down a
+one-column widget is six short lines of large text rather than three long lines of small.
 
 It is permission rather than instruction. Each candidate number of lines is measured the
 way the platform's own auto-sizing measures it, and the extra line is taken only if it
@@ -159,8 +164,8 @@ for its number nothing changes, which is what lets the setting default to on.
 
 A tall widget is the other place it earns its keep, for the same reason and not an
 opposite one. One line of `4 months, 16 days` across four columns runs out of width long
-before a five-row cell runs out of height; split over two or three it keeps growing, and
-the height a single line cannot use would otherwise go to margin.
+before a five-row cell runs out of height; each further line it is allowed keeps it
+growing, and the height a single line cannot use would otherwise go to margin.
 
 The cut-off case is worth spelling out, because it was a bug rather than a preference.
 The value row has no ellipsis. Once auto-sizing hits its floor and the text still needs a
@@ -168,9 +173,14 @@ second line, a `TextView` held to one draws that line and silently discards the 
 a 2x1 counting `2 years, 0 months, 8 days` was reading `2 years, 0 months, 8` with
 nothing to say it had stopped. Wrapping is what puts the rest of it back.
 
-One thing it will not do: it never breaks inside a unit. `25d` has no space in it, and a
-line breaker left alone will happily put `25` above `d`, so a size that can only fit the
-three lines by doing that is turned down rather than the wrap.
+One thing it will not do: it never breaks inside a word. `25d` has no space in it, and a
+line breaker left alone will happily put `25` above `d`, so a size that can only fit its
+lines by doing that is turned down rather than the wrap.
+
+That is a rule about words, not about units. `3` above `weeks,` breaks at a space like
+any other line, and on a widget narrow enough to be asking it is the break that keeps the
+text large — so the spelled-out form does separate a number from its unit name, and
+should.
 
 ## Reading on a wallpaper
 

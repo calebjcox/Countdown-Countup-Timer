@@ -39,7 +39,7 @@
 
     <Chronometer
         android:id="@+id/widget_ticker"
-        style="@style/WidgetValue"
+        style="@style/WidgetValue.Ticking"
         android:textColor="@color/widget_text_primary"
         android:visibility="gone" />
 

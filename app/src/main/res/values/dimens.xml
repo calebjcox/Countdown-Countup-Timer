@@ -28,11 +28,11 @@
     <dimen name="widget_label_text_min">12sp</dimen>
 
     <!--
-      The value's box, and the range its auto-sizing searches inside it.
+      The value's box, and the range searched inside it.
 
       The two text sizes are read from both sides for the same reason as the metrics
-      above: styles.xml hands them to `autoSizeM(in|ax)TextSize`, and WidgetRenderer
-      turns them into the line heights that bound the box.
+      above: WidgetRenderer searches between them for the static value, and styles.xml
+      hands them to `autoSizeM(in|ax)TextSize` for the ticking one, which sizes itself.
 
       The maximum is a sanity bound, never the size a cell settles on. What limits the
       text is the cell — how wide it is, and how much height is left once the labels have

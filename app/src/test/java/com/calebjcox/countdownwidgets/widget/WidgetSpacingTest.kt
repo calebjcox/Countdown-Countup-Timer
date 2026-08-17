@@ -159,6 +159,32 @@ class WidgetSpacingTest {
     }
 
     /**
+     * A value with more words than lines is a value that stops growing early. Spelled-out
+     * units are six words, and held to three lines they are three long lines sized by the
+     * width of the cell — on a widget the height of the screen that leaves most of the
+     * height as margin, whatever the ceiling on the text size says.
+     */
+    @Test
+    fun `a value spends every line it has words for`() {
+        val root = render(spelledOut, 344f, 620f)
+        val value = visibleValue(root)
+        val lines = requireNotNull(value.layout) { "the value never laid out" }.lineCount
+        val used = (0 until root.childCount)
+            .map { root.getChildAt(it) }
+            .filter { it.visibility == View.VISIBLE }
+            .sumOf { it.height } + root.paddingTop + root.paddingBottom
+
+        assertTrue(
+            "'${value.text}' took $lines lines of a 344x620 cell at ${value.textSize}px",
+            lines > 3,
+        )
+        assertTrue(
+            "the rows use ${px(used)}dp of a 620dp cell",
+            px(used) >= 0.6f * 620f,
+        )
+    }
+
+    /**
      * The labels come with it. A caption at the 12sp floor beside a number four times its
      * size is what reserving a fixed amount of height for it would produce; a share of
      * the value is what keeps the three rows looking like one widget.
@@ -268,6 +294,33 @@ class WidgetSpacingTest {
                 "${oneLine.textSize}px one line already managed",
             wrapped.textSize > oneLine.textSize,
         )
+    }
+
+    /**
+     * Every line ends at a space, which is the rule a box cannot express and so the rule
+     * the launcher's own auto-sizing was free to break. `months,` is wider than a
+     * one-column cell at the size a box alone allows, and the layout that fits by putting
+     * `mo` above `nths,` fits it exactly as well as the one that does not — so nothing
+     * short of choosing the size here keeps them apart.
+     */
+    @Test
+    fun `no line ends in the middle of a word`() {
+        for ((width, height) in CELLS + TALL) {
+            for (timer in listOf(spelledOut, abbreviated)) {
+                val value = visibleValue(render(timer, width, height))
+                val layout = requireNotNull(value.layout) { "the value never laid out" }
+                val drawn = minOf(layout.lineCount, value.maxLines)
+                for (line in 0 until drawn - 1) {
+                    val end = layout.getLineEnd(line)
+                    assertTrue(
+                        "at ${width}x$height '${value.text}' was drawn as " +
+                            "'${value.text.substring(layout.getLineStart(line), end)}' and " +
+                            "the rest, splitting a word",
+                        value.text[end - 1].isWhitespace(),
+                    )
+                }
+            }
+        }
     }
 
     /**

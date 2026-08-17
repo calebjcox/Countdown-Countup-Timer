@@ -33,7 +33,7 @@
 
     <Chronometer
         android:id="@+id/widget_ticker"
-        style="@style/WidgetValue.OnWallpaper"
+        style="@style/WidgetValue.Ticking.OnWallpaper"
         android:textColor="@color/widget_on_wallpaper_light_primary"
         android:visibility="gone" />
 
