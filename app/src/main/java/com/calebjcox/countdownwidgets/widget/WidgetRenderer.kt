@@ -186,14 +186,18 @@ object WidgetRenderer {
      *
      * **[THRESHOLDS], so the rows are right.** The launcher picks by nearest fitting
      * neighbour, which is not the test [variantFor] applies, so a map of arbitrary sizes
-     * would only approximate it. A map keyed on the thresholds themselves reproduces it
-     * exactly, and the nesting is the whole of the argument: "the entry at threshold *i*
-     * fits inside this box" *is* [variantFor]'s test for region *i*, so the entries that
-     * fit a box are a prefix of the chain and the last of them is the box's own region.
-     * And of two nested entries that both fit, the larger is nearer on both axes and so
-     * never further by squared distance — the launcher lands on the last one, which is
-     * the region the box belongs to. That holds for every box, on any grid, with nothing
-     * calibrated.
+     * would only approximate it. A map whose keys are the thresholds and nothing else
+     * reproduces it exactly, and the nesting is the whole of the argument: "the entry at
+     * threshold *i* fits inside this box" *is* [variantFor]'s test for region *i*, so the
+     * entries that fit a box are a prefix of the chain and the last of them is the box's
+     * own region. And of two nested entries that both fit, the larger is nearer on both
+     * axes and so never further by squared distance — the launcher lands on the last one,
+     * which is the region the box belongs to. That holds for every box, on any grid, with
+     * nothing calibrated.
+     *
+     * Only while they are the only keys, though. Every key added below sits at whatever
+     * shape a launcher's grid makes it, so the chain stops nesting and the equality goes
+     * with it. One direction of it survives, and that direction is the rule this ends on.
      *
      * **The reported cells, so the text is right.** A key at exactly a cell is one that
      * cell is certain to select — nothing is nearer than a squared distance of zero — and
@@ -216,6 +220,14 @@ object WidgetRenderer {
      * is just below, takes the reported cell's key and so its rows. That is the wrong
      * answer in the conservative direction — fewer rows, never more — and it lasts until
      * the host reports the box it is really drawing.
+     *
+     * So the invariant, weaker than the equality and true of every map this builds: a box
+     * draws a row, or spends height on the roomy padding, only where it has the room for
+     * it. The launcher only ever selects an entry that *fits*, and [variantFor] is monotone
+     * in the box, so what a selection lands on is at or below what the box has earned.
+     * Above would be the failure that matters — a row crushed into a cell too small to
+     * hold it. `WidgetVariantSizeTest` pins the equality on the thresholds alone and this
+     * on the maps a real host produces.
      *
      * Thresholds first so the cap can only ever drop coverage, and reported cells before
      * coverage because they are the ones that get drawn.
