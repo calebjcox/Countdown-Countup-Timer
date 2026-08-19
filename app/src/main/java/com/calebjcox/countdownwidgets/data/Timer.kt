@@ -1,7 +1,9 @@
 package com.calebjcox.countdownwidgets.data
 
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
+import com.calebjcox.countdownwidgets.core.RowVisibility
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -20,16 +22,22 @@ data class Timer(
     val name: String,
     val spec: TimerSpec,
     val labelStyle: LabelStyle = DEFAULT_LABEL_STYLE,
-    /** Only consulted when [showBackground] is false; see WidgetPalette. */
-    val textTheme: TextTheme = DEFAULT_TEXT_THEME,
-    val showBackground: Boolean = DEFAULT_SHOW_BACKGROUND,
     /**
-     * Whether the two rows either side of the value are wanted at all. A cell too
-     * small for a row drops it regardless — these say the row is unwanted even where
-     * there is room, which is a different question and the only one the user answers.
+     * Read on every backdrop, and on the two that draw a surface it also decides which
+     * surface: that surface goes the opposite way from the text, so a named colour picks
+     * the panel or the wash it can be read on. Only [TextTheme.AUTO] is answered
+     * differently per backdrop, and there the difference is who resolves it rather than
+     * whether this is consulted. See WidgetPalette.
      */
-    val showName: Boolean = DEFAULT_SHOW_NAME,
-    val showTarget: Boolean = DEFAULT_SHOW_TARGET,
+    val textTheme: TextTheme = DEFAULT_TEXT_THEME,
+    val backdrop: Backdrop = DEFAULT_BACKDROP,
+    /**
+     * How much of a say the cell gets over the two rows either side of the value. The
+     * renderer drops a row a cell has no room for; these say whether that decision is
+     * the user's or the cell's, which is the question a size cannot answer.
+     */
+    val nameVisibility: RowVisibility = DEFAULT_NAME_VISIBILITY,
+    val targetVisibility: RowVisibility = DEFAULT_TARGET_VISIBILITY,
     /**
      * Whether the value may run onto a second and third line where that makes it
      * bigger. Permission, not instruction: see WidgetRenderer.valueBox, which wraps
@@ -45,9 +53,9 @@ data class Timer(
         put(KEY_FIELDS, JSONArray().also { array -> spec.orderedFields.forEach { array.put(it.name) } })
         put(KEY_LABEL_STYLE, labelStyle.name)
         put(KEY_TEXT_THEME, textTheme.name)
-        put(KEY_SHOW_BACKGROUND, showBackground)
-        put(KEY_SHOW_NAME, showName)
-        put(KEY_SHOW_TARGET, showTarget)
+        put(KEY_BACKDROP, backdrop.name)
+        put(KEY_NAME_VISIBILITY, nameVisibility.name)
+        put(KEY_TARGET_VISIBILITY, targetVisibility.name)
         put(KEY_WRAP_VALUE, wrapValue)
     }
 
@@ -63,13 +71,13 @@ data class Timer(
         // switch away, and the renderer shrinks the text to fit either way.
         val DEFAULT_LABEL_STYLE = LabelStyle.LONG
         val DEFAULT_TEXT_THEME = TextTheme.AUTO
-        const val DEFAULT_SHOW_BACKGROUND = false
+        val DEFAULT_BACKDROP = Backdrop.NONE
 
-        // Both rows on, because that is what a stored timer carrying neither field
-        // is already showing. These two are the default for absent data as much as
-        // for a new timer, so anything else here redraws widgets nobody touched.
-        const val DEFAULT_SHOW_NAME = true
-        const val DEFAULT_SHOW_TARGET = true
+        // Both rows left to the cell, because that is what a stored timer carrying
+        // neither field is already doing. These two are the default for absent data as
+        // much as for a new timer, so anything else here redraws widgets nobody touched.
+        val DEFAULT_NAME_VISIBILITY = RowVisibility.WHEN_ROOM
+        val DEFAULT_TARGET_VISIBILITY = RowVisibility.WHEN_ROOM
 
         const val DEFAULT_WRAP_VALUE = true
 
@@ -80,10 +88,17 @@ data class Timer(
         private const val KEY_FIELDS = "fields"
         private const val KEY_LABEL_STYLE = "labelStyle"
         private const val KEY_TEXT_THEME = "textTheme"
-        private const val KEY_SHOW_BACKGROUND = "showBackground"
-        private const val KEY_SHOW_NAME = "showName"
-        private const val KEY_SHOW_TARGET = "showTarget"
+        private const val KEY_BACKDROP = "backdrop"
+        private const val KEY_NAME_VISIBILITY = "nameVisibility"
+        private const val KEY_TARGET_VISIBILITY = "targetVisibility"
         private const val KEY_WRAP_VALUE = "wrapValue"
+
+        // What these three were called while they were booleans. Read, never written:
+        // a file that has the enum has no use for them, and a build old enough to want
+        // them falls back to its own defaults, which are these values' own meaning.
+        private const val LEGACY_KEY_SHOW_BACKGROUND = "showBackground"
+        private const val LEGACY_KEY_SHOW_NAME = "showName"
+        private const val LEGACY_KEY_SHOW_TARGET = "showTarget"
 
         fun newId(): String = UUID.randomUUID().toString()
 
@@ -117,14 +132,45 @@ data class Timer(
                 // for, which is exactly the case AUTO answers.
                 textTheme = enumOf<TextTheme>(json.optString(KEY_TEXT_THEME))
                     ?: DEFAULT_TEXT_THEME,
-                showBackground = json.optBoolean(KEY_SHOW_BACKGROUND, DEFAULT_SHOW_BACKGROUND),
-                showName = json.optBoolean(KEY_SHOW_NAME, DEFAULT_SHOW_NAME),
-                showTarget = json.optBoolean(KEY_SHOW_TARGET, DEFAULT_SHOW_TARGET),
+                backdrop = enumOf<Backdrop>(json.optString(KEY_BACKDROP))
+                    ?: json.legacyBackdrop(),
+                nameVisibility = enumOf<RowVisibility>(json.optString(KEY_NAME_VISIBILITY))
+                    ?: json.legacyVisibility(LEGACY_KEY_SHOW_NAME, DEFAULT_NAME_VISIBILITY),
+                targetVisibility = enumOf<RowVisibility>(json.optString(KEY_TARGET_VISIBILITY))
+                    ?: json.legacyVisibility(LEGACY_KEY_SHOW_TARGET, DEFAULT_TARGET_VISIBILITY),
                 wrapValue = json.optBoolean(KEY_WRAP_VALUE, DEFAULT_WRAP_VALUE),
             )
         }.getOrNull()
 
         private inline fun <reified T : Enum<T>> enumOf(name: String?): T? =
             name?.let { runCatching { enumValueOf<T>(it) }.getOrNull() }
+
+        /**
+         * The backdrop a file written before there were three of them describes.
+         *
+         * A missing key is a timer nobody chose a backdrop for, which is what the
+         * default is; a present one is a deliberate choice between the two ends, and
+         * the middle is unreachable from a boolean by construction.
+         */
+        private fun JSONObject.legacyBackdrop(): Backdrop = when {
+            !has(LEGACY_KEY_SHOW_BACKGROUND) -> DEFAULT_BACKDROP
+            optBoolean(LEGACY_KEY_SHOW_BACKGROUND) -> Backdrop.PANEL
+            else -> Backdrop.NONE
+        }
+
+        /**
+         * The same for a row toggle, where absent has to keep meaning what the row was
+         * doing. `true` was "draw it where the cell has room", so it maps to
+         * [RowVisibility.WHEN_ROOM] rather than [RowVisibility.ALWAYS] — reading it as
+         * always would print a name onto every 1x1 whose owner never asked for one.
+         */
+        private fun JSONObject.legacyVisibility(
+            key: String,
+            absent: RowVisibility,
+        ): RowVisibility = when {
+            !has(key) -> absent
+            optBoolean(key) -> RowVisibility.WHEN_ROOM
+            else -> RowVisibility.NEVER
+        }
     }
 }

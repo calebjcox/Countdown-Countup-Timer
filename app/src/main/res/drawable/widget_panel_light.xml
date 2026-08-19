@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The light panel, drawn behind text of a named dark tone. Same corner radius as widget_background.xml: a launcher rounds
+  @android:id/background itself, and a shape that disagrees with it shows as a sliver at
+  each corner.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/widget_corner_radius" />
+    <solid android:color="@color/widget_panel_light" />
+</shape>

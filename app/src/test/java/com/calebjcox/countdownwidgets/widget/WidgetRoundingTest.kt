@@ -5,7 +5,9 @@ import android.util.SizeF
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.Precision
+import com.calebjcox.countdownwidgets.core.RowVisibility
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
 import com.calebjcox.countdownwidgets.data.Timer
@@ -65,9 +67,9 @@ class WidgetRoundingTest {
 
     @Test
     fun `a launcher rounds the whole widget, on the wallpaper and on a panel`() {
-        for (background in listOf(false, true)) {
+        for (backdrop in Backdrop.entries) {
             for ((width, height) in CELLS) {
-                assertRoundsTheRoot(timer.copy(showBackground = background), width, height)
+                assertRoundsTheRoot(timer.copy(backdrop = backdrop), width, height)
             }
         }
     }
@@ -80,10 +82,13 @@ class WidgetRoundingTest {
      */
     @Test
     fun `a widget down to its last row is still rounded as a whole`() {
-        val bare = timer.copy(showName = false, showTarget = false)
-        for (background in listOf(false, true)) {
+        val bare = timer.copy(
+            nameVisibility = RowVisibility.NEVER,
+            targetVisibility = RowVisibility.NEVER,
+        )
+        for (backdrop in Backdrop.entries) {
             for ((width, height) in CELLS) {
-                assertRoundsTheRoot(bare.copy(showBackground = background), width, height)
+                assertRoundsTheRoot(bare.copy(backdrop = backdrop), width, height)
             }
         }
     }
@@ -93,7 +98,7 @@ class WidgetRoundingTest {
         val root = host.getChildAt(0)
 
         assertSame(
-            "at ${widthDp}x$heightDp with showBackground=${timer.showBackground} the " +
+            "at ${widthDp}x$heightDp with backdrop=${timer.backdrop} the " +
                 "launcher would round a ${describe(findBackground(host))} rather than " +
                 "the widget",
             root,

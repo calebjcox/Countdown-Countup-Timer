@@ -7,6 +7,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.TimeField
@@ -66,7 +67,7 @@ class WidgetSpacingTest {
             fields = setOf(TimeField.YEAR, TimeField.MONTH, TimeField.DAY),
         ),
         labelStyle = LabelStyle.LONG,
-        showBackground = true,
+        backdrop = Backdrop.PANEL,
     )
 
     /**
@@ -84,7 +85,7 @@ class WidgetSpacingTest {
             fields = setOf(TimeField.MONTH, TimeField.DAY),
         ),
         labelStyle = LabelStyle.SHORT,
-        showBackground = true,
+        backdrop = Backdrop.PANEL,
     )
 
     /**

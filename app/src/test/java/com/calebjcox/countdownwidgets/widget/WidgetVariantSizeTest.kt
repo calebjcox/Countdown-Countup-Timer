@@ -6,7 +6,9 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.Precision
+import com.calebjcox.countdownwidgets.core.RowVisibility
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
 import com.calebjcox.countdownwidgets.data.Timer
@@ -15,6 +17,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -59,7 +62,7 @@ class WidgetVariantSizeTest {
             precision = Precision.DATE,
             fields = setOf(TimeField.YEAR, TimeField.MONTH, TimeField.DAY),
         ),
-        showBackground = true,
+        backdrop = Backdrop.PANEL,
     )
 
     private val nowMillis =
@@ -126,12 +129,69 @@ class WidgetVariantSizeTest {
         // The cell from the first test, which shows all three rows by default. What the
         // toggles say is not "if it fits" — it is that the row is unwanted, so the size
         // that would otherwise draw it is exactly where they have to hold.
-        assertRows(140f, 100f, name = false, footer = true, timer = timer.copy(showName = false))
-        assertRows(140f, 100f, name = true, footer = false, timer = timer.copy(showTarget = false))
+        assertRows(140f, 100f, name = false, footer = true, timer = timer.copy(nameVisibility = RowVisibility.NEVER))
+        assertRows(140f, 100f, name = true, footer = false, timer = timer.copy(targetVisibility = RowVisibility.NEVER))
         assertRows(
             140f, 100f, name = false, footer = false,
-            timer = timer.copy(showName = false, showTarget = false),
+            timer = timer.copy(
+                nameVisibility = RowVisibility.NEVER,
+                targetVisibility = RowVisibility.NEVER,
+            ),
         )
+    }
+
+    @Test
+    fun `always keeps a row the cell has no room for`() {
+        // The three sizes the tests above pin as dropping a row, with the setting that
+        // says the drop was the cell's decision to make and this one is not. A 1x1 put
+        // there to show one name is the whole reason the setting exists.
+        assertRows(
+            64f, 76f, name = true, footer = false,
+            timer = timer.copy(nameVisibility = RowVisibility.ALWAYS),
+        )
+        assertRows(
+            400f, 60f, name = true, footer = true,
+            timer = timer.copy(targetVisibility = RowVisibility.ALWAYS),
+        )
+        assertRows(
+            64f, 76f, name = true, footer = true,
+            timer = timer.copy(
+                nameVisibility = RowVisibility.ALWAYS,
+                targetVisibility = RowVisibility.ALWAYS,
+            ),
+        )
+    }
+
+    @Test
+    fun `always cannot conjure a name the timer does not have`() {
+        // The one thing that still outranks it. A blank name draws a blank row, which is
+        // a gap where the number should be rather than a name at any size.
+        assertRows(
+            140f, 100f, name = false, footer = true,
+            timer = timer.copy(name = "", nameVisibility = RowVisibility.ALWAYS),
+        )
+    }
+
+    @Test
+    fun `a cell narrower than its own padding is drawn rather than thrown`() {
+        // A reported cell under 2 x widget_padding_compact leaves a negative content box,
+        // and `StaticLayout` throws on a negative width instead of degrading — so this is
+        // the difference between a widget drawn uselessly small and an update that takes
+        // the widget down. Nothing upstream filters it: variantsFor and sizingFor drop
+        // cells that are not positive, and 6dp is positive.
+        //
+        // 12dp is the boundary and is included on purpose: it leaves a box of exactly
+        // zero, which `StaticLayout` accepts, so it is the case a guard written as `< 0`
+        // would let through into a search that can never fit anything.
+        for (width in listOf(12f, 11f, 6f, 1f)) {
+            // The unconfigured prompt as well: it measures against tightest(cells) and
+            // reaches the same search, so it is reachable by the same cell.
+            for (of in listOf(timer, null)) {
+                val what = "a ${width}dp cell" + if (of == null) " with no timer" else ""
+                runCatching { build(of, listOf(SizeF(width, 40f))) }
+                    .onFailure { fail("$what threw ${it::class.simpleName}: ${it.message}") }
+            }
+        }
     }
 
     @Test
@@ -243,7 +303,7 @@ class WidgetVariantSizeTest {
         }
     }
 
-    private fun build(timer: Timer, cells: List<SizeF> = emptyList()): RemoteViews =
+    private fun build(timer: Timer?, cells: List<SizeF> = emptyList()): RemoteViews =
         WidgetRenderer.build(
             context = context,
             appWidgetId = 1,

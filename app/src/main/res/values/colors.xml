@@ -12,20 +12,70 @@
     <color name="widget_text_secondary">@android:color/system_neutral2_700</color>
 
     <!--
-      Text drawn straight onto the wallpaper. Deliberately NOT duplicated in
-      values-night: which of these two applies is decided at runtime from the
-      wallpaper's own hint, not from the system theme, because a light-mode phone
-      with a dark photo wallpaper needs the light text a -night qualifier would
-      never give it. Tinted rather than plain white or black so the widget matches
-      the Material You palette the way the platform clock widget does.
+      What each named text colour means, on any backdrop. Deliberately NOT duplicated in
+      values-night: a tone the user named is the same tone in every configuration, and
+      the whole point of naming one is that nothing moves it. Auto is the case that
+      moves, and it is expressed by the qualified pairs below rather than by these.
+      Tinted rather than plain white or black so the widget matches the Material You
+      palette the way the platform clock widget does.
     -->
-    <color name="widget_on_wallpaper_light_primary">@android:color/system_accent1_100</color>
-    <color name="widget_on_wallpaper_light_secondary">@android:color/system_neutral1_100</color>
-    <color name="widget_on_wallpaper_dark_primary">@android:color/system_accent1_700</color>
-    <color name="widget_on_wallpaper_dark_secondary">@android:color/system_neutral1_800</color>
+    <color name="widget_tone_light_primary">@android:color/system_accent1_100</color>
+    <color name="widget_tone_light_secondary">@android:color/system_neutral1_100</color>
+    <color name="widget_tone_dark_primary">@android:color/system_accent1_700</color>
+    <color name="widget_tone_dark_secondary">@android:color/system_neutral1_800</color>
+
+    <!--
+      The plain pair, and the reason there is one. Everything above is tinted from the
+      wallpaper, which is what makes a widget look like it belongs there and is also how
+      it fails: a wallpaper with a strong accent tints the text towards itself, and text
+      a few steps from what is behind it cannot be read at any size. These give that up
+      and cannot fail that way. The secondary of each is the same colour softened rather
+      than a second hue, because there is no palette here to take one from.
+    -->
+    <color name="widget_tone_white_primary">#FFFFFFFF</color>
+    <color name="widget_tone_white_secondary">#E6FFFFFF</color>
+    <color name="widget_tone_black_primary">#FF000000</color>
+    <color name="widget_tone_black_secondary">#CC000000</color>
+
+    <!--
+      Auto on a scrim: the tone follows the system theme, because a scrim is a surface
+      this app draws and it follows the theme too. Qualified rather than resolved in
+      code, so a phone switched to dark mode redraws to match instead of keeping the
+      tone it was built with until the next midnight. The values are the light and dark
+      pairs above, split by the qualifier that decides between them.
+    -->
+    <color name="widget_on_scrim_primary">@color/widget_tone_dark_primary</color>
+    <color name="widget_on_scrim_secondary">@color/widget_tone_dark_secondary</color>
 
     <!-- Behind text on the wallpaper, where the photo underneath is unknowable. -->
     <color name="widget_text_shadow">#99000000</color>
+
+    <!--
+      The scrim, named for its own tone: the dark one goes under light text and the light
+      one under dark text, which is the whole of what a scrim is for.
+
+      The opacities are the worst case rather than a look. A scrim only has to work
+      against the wallpaper that fights it — a white one under the dark scrim, a black one
+      under the light — so those are what they are set against. 65% black over white lands
+      near #595959, which clears about 5.5:1 against the light text; 75% white over black
+      lands near #BFBFBF, about 5:1 against the dark. Lower and there is a photo that
+      defeats it, which would make the middle backdrop no answer at all; higher and it is
+      the solid panel with extra steps, when the point of choosing it is that the
+      wallpaper still shows through.
+    -->
+    <color name="widget_scrim_dark">#A6000000</color>
+    <color name="widget_scrim_light">#BFFFFFFF</color>
+
+    <!-- And the one Auto uses, which is whichever of those two the theme calls for. -->
+    <color name="widget_scrim_auto">@color/widget_scrim_light</color>
+
+    <!--
+      The panel at a named tone. widget_background above is the Auto one and keeps its
+      -night pair; these two are its halves, pinned, for a user who named a text colour
+      and must get a panel that colour can be read on whatever the phone is doing.
+    -->
+    <color name="widget_panel_light">@android:color/system_neutral1_50</color>
+    <color name="widget_panel_dark">@android:color/system_neutral1_800</color>
 
     <!--
       Stands in for "some wallpaper" behind the editor's preview. A mid tone, so a

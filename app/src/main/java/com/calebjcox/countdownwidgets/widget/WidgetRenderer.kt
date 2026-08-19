@@ -18,6 +18,8 @@ import com.calebjcox.countdownwidgets.core.Display
 import com.calebjcox.countdownwidgets.core.DurationMath
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.Rendering
+import com.calebjcox.countdownwidgets.core.drawsOnWallpaper
+import com.calebjcox.countdownwidgets.core.shows
 import com.calebjcox.countdownwidgets.data.Timer
 import com.calebjcox.countdownwidgets.ui.EditTimerActivity
 import com.calebjcox.countdownwidgets.ui.WidgetConfigActivity
@@ -406,6 +408,12 @@ object WidgetRenderer {
         return dx * dx + dy * dy
     }
 
+    /**
+     * `TextView.setTextColor`, for the `RemoteViews` calls that reach it by name so they
+     * can hand it a resource id instead of a colour. See the note in [render].
+     */
+    private const val SET_TEXT_COLOR = "setTextColor"
+
     private fun render(
         context: Context,
         appWidgetId: Int,
@@ -418,6 +426,27 @@ object WidgetRenderer {
     ): RemoteViews {
         val (detail, density) = variant
         val views = RemoteViews(context.packageName, layoutFor(timer))
+
+        // On every backdrop, including the one that wants no background at all. A variant
+        // that leaves this alone does not draw "whatever the layout says", it draws
+        // whatever the *last variant* set: the host reuses the view whenever the layout
+        // id matches, and reapplying a RemoteViews only runs the actions it carries. Two
+        // backdrops now share a file, so the one that set a scrim would leave it behind
+        // for the one that did not — see WidgetSurfaceTest.
+        //
+        // Before the padding, and the order is load-bearing: setting a background applies
+        // the drawable's own padding to the view, so a background set afterwards would
+        // discard what the line below just chose. None of these shapes declares padding,
+        // which makes it a precaution rather than a fix — and one that costs nothing.
+        //
+        // Set by resource rather than by colour so the shape carries the corner radius,
+        // and reached by name because `RemoteViews` has no wrapper for it; `View` marks
+        // `setBackgroundResource` @RemotableViewMethod, which is what makes that legal.
+        views.setInt(
+            android.R.id.background,
+            "setBackgroundResource",
+            WidgetPalette.backgroundFor(context, timer.backdrop, timer.textTheme),
+        )
 
         // Applied explicitly on every variant rather than left to whichever XML default
         // happens to match it, because a variant whose spacing comes from somewhere else
@@ -433,12 +462,20 @@ object WidgetRenderer {
         )
         val footer = targetSummary(context, timer, display)
 
-        // A row the timer has switched off, or a name row on a timer with no name,
-        // is not drawn whatever the variant asked for — so everything below is
-        // measured against the rows that will actually be drawn, and the value grows
-        // into the room a dropped row leaves rather than centring on a gap.
-        val showName = detail != Detail.VALUE && timer.showName && timer.name.isNotBlank()
-        val showFooter = detail == Detail.EVERYTHING && timer.showTarget
+        // What the variant worked out is only half of it: the timer says whether that
+        // decision is the cell's at all, and a name row on a timer with no name is not
+        // drawn whatever either of them wanted. So everything below is measured against
+        // the rows that will actually be drawn, and the value grows into the room a
+        // dropped row leaves rather than centring on a gap.
+        //
+        // ALWAYS can ask for more rows than the box holds, and that is allowed: the rows
+        // absorb it rather than the widget clipping. `LinearLayout` measures each child
+        // against the height its predecessors left, so the labels give way; [setValueBox]
+        // gives the value an exact height, which is what keeps the number whole. See
+        // WidgetOverrunTest for where that stops.
+        val showName = timer.nameVisibility.shows(detail != Detail.VALUE) &&
+            timer.name.isNotBlank()
+        val showFooter = timer.targetVisibility.shows(detail == Detail.EVERYTHING)
         val text = Text(
             value = valueText(head, display.tailMillis),
             name = if (showName) timer.name else null,
@@ -466,24 +503,27 @@ object WidgetRenderer {
         views.setTextViewTextSize(R.id.widget_value, TypedValue.COMPLEX_UNIT_PX, metrics.valueText)
         setValueBox(views, metrics.valueHeight, metrics.valueLines)
 
-        // Only on the wallpaper, where the choice depends on the wallpaper itself and
-        // no resource qualifier can express it. On its own panel the layout's -night
-        // pair is not merely sufficient, it is the only thing that stays correct: a
-        // colour set from here is resolved in this process, at build time, and then
-        // frozen into the RemoteViews the launcher keeps, while the panel behind it is
-        // resolved from the same resources by the launcher every time it inflates them.
-        // Switch the phone to dark mode and the two part company — the panel turns
-        // dark, the text keeps the light tone it was built with — and it stays that way
-        // until something redraws the widget, which for a day-precision timer is the
-        // next midnight. Leaving the pair to the resource system is what keeps it
-        // together, and it costs a widget on a panel nothing: the two colours agree by
-        // construction because they come from the same qualifier.
-        if (!timer.showBackground) {
-            val palette = WidgetPalette.forTimer(context, timer)
-            views.setTextColor(R.id.widget_name, palette.secondary)
-            views.setTextColor(R.id.widget_value, palette.primary)
-            views.setTextColor(R.id.widget_ticker, palette.primary)
-            views.setTextColor(R.id.widget_footer, palette.secondary)
+        // All four rows on every backdrop, for the reason the background above is — and
+        // the palette decides not only which colours but whether they can be colours at
+        // all. A tone somebody named is frozen here; Auto on a scrim or a panel is handed
+        // over as a resource id, because the surface behind it is one too and the two have
+        // to be resolved together, by the launcher, at the moment it draws them. Freeze
+        // only the text and a phone switched to dark mode keeps the old tone on the new
+        // surface until something redraws the widget, which for a day-precision timer is
+        // the next midnight. See WidgetPalette, and WidgetNightModeTest.
+        when (val colors = WidgetPalette.textColorsFor(context, timer.backdrop, timer.textTheme)) {
+            is WidgetPalette.TextColors.Fixed -> {
+                views.setTextColor(R.id.widget_name, colors.colors.secondary)
+                views.setTextColor(R.id.widget_value, colors.colors.primary)
+                views.setTextColor(R.id.widget_ticker, colors.colors.primary)
+                views.setTextColor(R.id.widget_footer, colors.colors.secondary)
+            }
+            is WidgetPalette.TextColors.Themed -> {
+                views.setColorStateList(R.id.widget_name, SET_TEXT_COLOR, colors.secondary)
+                views.setColorStateList(R.id.widget_value, SET_TEXT_COLOR, colors.primary)
+                views.setColorStateList(R.id.widget_ticker, SET_TEXT_COLOR, colors.primary)
+                views.setColorStateList(R.id.widget_footer, SET_TEXT_COLOR, colors.secondary)
+            }
         }
 
         views.setViewVisibility(R.id.widget_name, if (showName) View.VISIBLE else View.GONE)
@@ -608,10 +648,15 @@ object WidgetRenderer {
         fun reserved(valueSize: Float): Int =
             labelCount * lineHeightPx(maxOf(floor, valueSize * LABEL_SHARE))
 
-        // No text to measure. Nothing below has an answer for that, and neither does a
-        // widget: hand back a row at the floor and let a caller with something to draw
-        // ask again.
-        if (text.value.isEmpty()) {
+        // Nothing to measure, or nothing to measure it in. Both want the same answer — a
+        // row at the floor, and a caller with something to draw can ask again — but only
+        // the first is about the text. The second is the box: a host reporting a cell
+        // narrower than the padding it will be drawn with leaves a *negative* width, and
+        // `StaticLayout` throws on one rather than degrading, so an update for a cell like
+        // that would take down the widget instead of drawing it small. Nothing upstream
+        // catches it: `variantsFor` and `sizingFor` only drop cells that are not positive,
+        // which a 6dp one is. See WidgetVariantSizeTest.
+        if (text.value.isEmpty() || widthPx <= 0) {
             val height = (availablePx - labelCount * lineHeightPx(floor))
                 .coerceIn(lineHeightPx(smallest, bold = true), lineHeightPx(largest, bold = true))
             return Metrics(height, 1, smallest, floor)
@@ -1009,13 +1054,31 @@ object WidgetRenderer {
     }
 
     /**
-     * The two layouts differ only in having a background and a text shadow. They
-     * are separate files rather than one file configured at runtime because
-     * `RemoteViews` dispatches only single-argument remotable methods, and
-     * `setShadowLayer` takes four — so a shadow can only be declared in XML.
+     * The two layouts differ only in the text shadow. They are separate files rather than
+     * one file configured at runtime because `RemoteViews` dispatches only
+     * single-argument remotable methods, and `setShadowLayer` takes four — so a shadow can
+     * only be declared in XML.
+     *
+     * So the question this asks is not "which backdrop" but "is there a photo behind the
+     * text". A shadow is what carries a single colour across a picture that is bright at
+     * one end of a line and dark at the other, and `drawsOnWallpaper` is exactly the set
+     * that has one behind it. On a panel or a scrim the text sits on a surface this app
+     * drew, at a contrast it chose, and a shadow there is at best redundant — at worst a
+     * dark halo around dark text on a light wash, which is smudging rather than
+     * separation.
+     *
+     * Which leaves two files for three backdrops, and a scrim on the panel's layout. That
+     * works because the renderer overrides both things the file declares for a panel, and
+     * overrides them for every scrim there is: the root's background, replaced above with
+     * the scrim drawable, and all four rows' colours, set below. `WidgetScrimTest` pins
+     * both, because neither is visible from the layout that depends on them.
      */
     private fun layoutFor(timer: Timer): Int =
-        if (timer.showBackground) R.layout.widget_timer else R.layout.widget_timer_wallpaper
+        if (timer.backdrop.drawsOnWallpaper) {
+            R.layout.widget_timer_wallpaper
+        } else {
+            R.layout.widget_timer
+        }
 
     /**
      * Embeds the calendar part into the chronometer's own format string. The `%s` is
@@ -1068,6 +1131,16 @@ object WidgetRenderer {
         val size = SMALLEST
         val variant = variantFor(size)
         val resources = context.resources
+        // The panel's own surface, set rather than left to the layout for the reason
+        // [render] sets it: this shares a file with the configured widget, so a prompt
+        // replacing a timer that had a scrim would otherwise be drawn on that scrim, in
+        // that scrim's text colour.
+        views.setInt(
+            android.R.id.background,
+            "setBackgroundResource",
+            R.drawable.widget_background,
+        )
+        views.setColorStateList(R.id.widget_value, SET_TEXT_COLOR, R.color.widget_text_primary)
         val padding = resources.getDimensionPixelSize(variant.density.padding)
         views.setViewPadding(android.R.id.background, padding, padding, padding, padding)
         val prompt = context.getString(R.string.widget_unconfigured)

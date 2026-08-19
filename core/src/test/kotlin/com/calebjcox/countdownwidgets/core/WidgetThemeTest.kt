@@ -1,6 +1,8 @@
 package com.calebjcox.countdownwidgets.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WidgetThemeTest {
@@ -49,19 +51,35 @@ class WidgetThemeTest {
 
     @Test
     fun `an explicit choice ignores the wallpaper and the system theme`() {
-        for (hint in listOf(true, false, null)) {
-            for (dark in listOf(true, false)) {
-                assertEquals(
-                    "LIGHT override, hint=$hint darkMode=$dark",
-                    TextTone.LIGHT,
-                    resolveTextTone(TextTheme.LIGHT, hint, dark),
-                )
-                assertEquals(
-                    "DARK override, hint=$hint darkMode=$dark",
-                    TextTone.DARK,
-                    resolveTextTone(TextTheme.DARK, hint, dark),
-                )
+        // Every theme but AUTO, so the two plain colours are held to the same promise as
+        // the two tinted ones: chosen is chosen, whatever is behind the widget.
+        val chosen = mapOf(
+            TextTheme.LIGHT to TextTone.LIGHT,
+            TextTheme.DARK to TextTone.DARK,
+            TextTheme.WHITE to TextTone.WHITE,
+            TextTheme.BLACK to TextTone.BLACK,
+        )
+        for ((theme, tone) in chosen) {
+            for (hint in listOf(true, false, null)) {
+                for (dark in listOf(true, false)) {
+                    assertEquals(
+                        "$theme override, hint=$hint darkMode=$dark",
+                        tone,
+                        resolveTextTone(theme, hint, dark),
+                    )
+                }
             }
         }
+    }
+
+    @Test
+    fun `the plain tones side with the tinted ones they stand in for`() {
+        // What a scrim is picked from — see WidgetPalette.scrimFor. White has to count as
+        // light and black as dark, or a scrim would be drawn the same way as the text it
+        // is meant to separate from the wallpaper, which is no separation at all.
+        assertTrue(TextTone.WHITE.isLight)
+        assertTrue(TextTone.LIGHT.isLight)
+        assertFalse(TextTone.BLACK.isLight)
+        assertFalse(TextTone.DARK.isLight)
     }
 }

@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The widget drawn on its own panel. Text colours come from the -night resource
-  pair, which is correct here because the text sits on a background this app
-  controls. For the transparent variant see widget_timer_wallpaper.xml.
+  The widget drawn on a surface this app put there — its own panel, or the tinted
+  scrim. No text shadow, because there is no photo under the text to separate it from;
+  for the one backdrop that has one see widget_timer_wallpaper.xml.
+
+  Text colours come from the -night resource pair, which is right for the panel: the
+  text and the card behind it are the same qualifier's answer, so they cannot disagree.
+  A scrim overrides all four at draw time and has to — it is translucent, so the
+  wallpaper still has a say in which tone reads on it, and that is a question no
+  qualifier can answer. Same for the background: the panel takes the drawable declared
+  below, a scrim replaces it. See WidgetRenderer.layoutFor, and WidgetScrimTest, which
+  pins the overrides this file's defaults would otherwise show through.
 
   One layout serves every size: the launcher is handed a RemoteViews per entry of a
   size map built from this file — different rows hidden, and the padding and label
