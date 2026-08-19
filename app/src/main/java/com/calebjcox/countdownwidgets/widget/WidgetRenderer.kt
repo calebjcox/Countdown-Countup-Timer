@@ -468,22 +468,11 @@ object WidgetRenderer {
         // the rows that will actually be drawn, and the value grows into the room a
         // dropped row leaves rather than centring on a gap.
         //
-        // ALWAYS can ask for more rows than the box holds — at the 40x40 the provider
-        // advertises as its minimum, the three come to 32px of content inside 28px — and
-        // what happens then is absorption rather than clipping.
-        //
-        // `LinearLayout` measures each child against the height its predecessors left, so
-        // the footer, last and `wrap_content`, gets an `AT_MOST` spec of whatever remains
-        // and collapses to nothing *inside* the root rather than being cut off the end.
-        // The name goes the same way once the box is tighter still. The value is the
-        // exception and deliberately so: [setValueBox] gives it an exact height, so its
-        // spec is `EXACTLY` and the remaining-height cap cannot reach it — which is what
-        // keeps the number whole while the rows around it give way.
-        //
-        // The leftover is only what the rows and the padding together overshoot the root
-        // by, and the root's centre gravity splits that, spending padding before anything
-        // is cut. So nothing is clipped at any size a host hands out; the first pixel goes
-        // off the top of the name at 31dp of box, below the provider's own minimum.
+        // ALWAYS can ask for more rows than the box holds, and that is allowed: the rows
+        // absorb it rather than the widget clipping. `LinearLayout` measures each child
+        // against the height its predecessors left, so the labels give way; [setValueBox]
+        // gives the value an exact height, which is what keeps the number whole. See
+        // WidgetOverrunTest for where that stops.
         val showName = timer.nameVisibility.shows(detail != Detail.VALUE) &&
             timer.name.isNotBlank()
         val showFooter = timer.targetVisibility.shows(detail == Detail.EVERYTHING)
