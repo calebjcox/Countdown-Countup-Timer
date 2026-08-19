@@ -14,11 +14,11 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.DimenRes
 import com.calebjcox.countdownwidgets.R
-import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.Display
 import com.calebjcox.countdownwidgets.core.DurationMath
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.Rendering
+import com.calebjcox.countdownwidgets.core.drawsOnWallpaper
 import com.calebjcox.countdownwidgets.core.shows
 import com.calebjcox.countdownwidgets.data.Timer
 import com.calebjcox.countdownwidgets.ui.EditTimerActivity
@@ -502,38 +502,27 @@ object WidgetRenderer {
         views.setTextViewTextSize(R.id.widget_value, TypedValue.COMPLEX_UNIT_PX, metrics.valueText)
         setValueBox(views, metrics.valueHeight, metrics.valueLines)
 
-        // All four rows on every backdrop, for the reason the background above is, and
-        // *how* they are set is the whole of the difference between the two cases.
-        //
-        // Off a panel the colour is a value. It was resolved from the wallpaper's own
-        // hint, which is a question no resource qualifier asks, so it has to be decided
-        // here and frozen — which is right, because a change of system theme is not a
-        // change of wallpaper and must not disturb it.
-        //
-        // On a panel it is a resource id, and it has to be. A colour resolved here is
-        // resolved in this process at build time and then frozen into the RemoteViews the
-        // launcher keeps, while the panel behind it is resolved from the same resources by
-        // the launcher every time it inflates them. Switch the phone to dark mode and the
-        // two part company — the panel turns dark, the text keeps the light tone it was
-        // built with — and it stays that way until something redraws the widget, which for
-        // a day-precision timer is the next midnight. `setColorStateList` carries the id
-        // rather than the colour, so the launcher resolves text and panel from one
-        // qualifier at the moment it draws them, and they cannot disagree.
-        if (timer.backdrop == Backdrop.PANEL) {
-            views.setColorStateList(R.id.widget_name, SET_TEXT_COLOR, R.color.widget_text_secondary)
-            views.setColorStateList(R.id.widget_value, SET_TEXT_COLOR, R.color.widget_text_primary)
-            views.setColorStateList(R.id.widget_ticker, SET_TEXT_COLOR, R.color.widget_text_primary)
-            views.setColorStateList(
-                R.id.widget_footer,
-                SET_TEXT_COLOR,
-                R.color.widget_text_secondary,
-            )
-        } else {
-            val palette = WidgetPalette.forTimer(context, timer)
-            views.setTextColor(R.id.widget_name, palette.secondary)
-            views.setTextColor(R.id.widget_value, palette.primary)
-            views.setTextColor(R.id.widget_ticker, palette.primary)
-            views.setTextColor(R.id.widget_footer, palette.secondary)
+        // All four rows on every backdrop, for the reason the background above is — and
+        // the palette decides not only which colours but whether they can be colours at
+        // all. A tone somebody named is frozen here; Auto on a scrim or a panel is handed
+        // over as a resource id, because the surface behind it is one too and the two have
+        // to be resolved together, by the launcher, at the moment it draws them. Freeze
+        // only the text and a phone switched to dark mode keeps the old tone on the new
+        // surface until something redraws the widget, which for a day-precision timer is
+        // the next midnight. See WidgetPalette, and WidgetNightModeTest.
+        when (val colors = WidgetPalette.textColorsFor(context, timer.backdrop, timer.textTheme)) {
+            is WidgetPalette.TextColors.Fixed -> {
+                views.setTextColor(R.id.widget_name, colors.colors.secondary)
+                views.setTextColor(R.id.widget_value, colors.colors.primary)
+                views.setTextColor(R.id.widget_ticker, colors.colors.primary)
+                views.setTextColor(R.id.widget_footer, colors.colors.secondary)
+            }
+            is WidgetPalette.TextColors.Themed -> {
+                views.setColorStateList(R.id.widget_name, SET_TEXT_COLOR, colors.secondary)
+                views.setColorStateList(R.id.widget_value, SET_TEXT_COLOR, colors.primary)
+                views.setColorStateList(R.id.widget_ticker, SET_TEXT_COLOR, colors.primary)
+                views.setColorStateList(R.id.widget_footer, SET_TEXT_COLOR, colors.secondary)
+            }
         }
 
         views.setViewVisibility(R.id.widget_name, if (showName) View.VISIBLE else View.GONE)
@@ -1066,10 +1055,11 @@ object WidgetRenderer {
      *
      * So the question this asks is not "which backdrop" but "is there a photo behind the
      * text". A shadow is what carries a single colour across a picture that is bright at
-     * one end of a line and dark at the other, and only [Backdrop.NONE] has one of those
-     * behind it. On a panel or a scrim the text sits on a surface this app drew, at a
-     * contrast it chose, and a shadow there is at best redundant — at worst a dark halo
-     * around dark text on a light wash, which is smudging rather than separation.
+     * one end of a line and dark at the other, and `drawsOnWallpaper` is exactly the set
+     * that has one behind it. On a panel or a scrim the text sits on a surface this app
+     * drew, at a contrast it chose, and a shadow there is at best redundant — at worst a
+     * dark halo around dark text on a light wash, which is smudging rather than
+     * separation.
      *
      * Which leaves two files for three backdrops, and a scrim on the panel's layout. That
      * works because the renderer overrides both things the file declares for a panel, and
@@ -1078,7 +1068,7 @@ object WidgetRenderer {
      * both, because neither is visible from the layout that depends on them.
      */
     private fun layoutFor(timer: Timer): Int =
-        if (timer.backdrop == Backdrop.NONE) {
+        if (timer.backdrop.drawsOnWallpaper) {
             R.layout.widget_timer_wallpaper
         } else {
             R.layout.widget_timer

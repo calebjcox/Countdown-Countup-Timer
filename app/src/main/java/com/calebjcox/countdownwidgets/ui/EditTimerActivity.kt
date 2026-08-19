@@ -342,14 +342,11 @@ class EditTimerActivity : AppCompatActivity() {
         binding.clockUnits.visibility = if (showTime) View.VISIBLE else View.GONE
         binding.time.visibility = if (showTime) View.VISIBLE else View.GONE
 
-        // On its own panel the text and the panel are a matched pair, so offering a
-        // choice there would only manufacture unreadable combinations. A scrim is not
-        // that: it is drawn from whatever tone is chosen, so the choice still means
-        // something and is still worth showing.
-        val overWallpaper = backdrop != Backdrop.PANEL
-        binding.textThemeLabel.visibility = if (overWallpaper) View.VISIBLE else View.GONE
-        binding.textThemeGroup.visibility = if (overWallpaper) View.VISIBLE else View.GONE
-        binding.textThemeHint.visibility = if (overWallpaper) View.VISIBLE else View.GONE
+        // Shown on every backdrop. A named colour used to be offered only off a panel,
+        // on the grounds that it could only manufacture unreadable combinations there —
+        // which stopped being true once the surface started following the tone instead
+        // of the other way round. Black text makes the panel light; there is nothing
+        // left to strand it on. See WidgetPalette.
 
         binding.date.text = targetDate.format(dateFormatter)
         binding.time.text = targetTime.format(timeFormatter)
@@ -398,17 +395,14 @@ class EditTimerActivity : AppCompatActivity() {
         binding.previewValue.setTextColor(colors.primary)
         binding.previewFooter.setTextColor(colors.secondary)
 
-        val behind = ContextCompat.getColor(
-            this,
-            if (backdrop == Backdrop.PANEL) {
-                R.color.widget_background
-            } else {
-                R.color.preview_wallpaper_stand_in
-            },
-        )
-        val scrim = WidgetPalette.scrimColor(this, backdrop, textTheme)
+        // One path for all three backdrops: whatever the widget puts between the text and
+        // the wallpaper, composited onto the stand-in. A panel's colour is opaque, so
+        // compositing gives it straight back; a scrim's is not, so the stand-in shows
+        // through it exactly as a real wallpaper would.
+        val behind = ContextCompat.getColor(this, R.color.preview_wallpaper_stand_in)
+        val surface = WidgetPalette.surfaceColorFor(this, backdrop, textTheme)
         binding.previewCard.setCardBackgroundColor(
-            if (scrim == null) behind else ColorUtils.compositeColors(scrim, behind),
+            if (surface == null) behind else ColorUtils.compositeColors(surface, behind),
         )
     }
 

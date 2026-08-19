@@ -5,79 +5,116 @@ import android.app.WallpaperColors
 import android.content.Context
 import android.content.res.Configuration
 import androidx.annotation.ColorInt
+import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import com.calebjcox.countdownwidgets.R
 import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TextTone
+import com.calebjcox.countdownwidgets.core.chosenTone
+import com.calebjcox.countdownwidgets.core.drawsOnWallpaper
 import com.calebjcox.countdownwidgets.core.resolveTextTone
 import com.calebjcox.countdownwidgets.data.Timer
 
 /**
- * The two colours a widget draws its text in, and the scrim it may draw them on.
+ * What the widget's text is drawn in, and what it is drawn on.
  *
- * A widget on its own panel is a self-contained card: the panel and the text come from
- * the same light/dark resource pair and always agree. Anything short of a panel is drawing
- * over the wallpaper, and has to make the same decision a launcher makes for its icon
- * labels — which is a question about the *wallpaper*, not about the system theme. Those
- * two signals part company exactly when it matters: a phone in light mode with a dark
- * photo behind the widget.
+ * One rule covers all three backdrops: **the surface goes the opposite way from the
+ * text.** Light text gets the dark scrim or the dark panel, dark text the light ones, and
+ * a widget with no surface at all gets whatever the wallpaper can carry. That is what
+ * makes a named colour worth offering on every backdrop — choosing Black cannot strand the
+ * text on a dark card, because choosing Black is also what makes the card light.
  *
- * A scrim does not take the wallpaper out of that question, which is why it is on this
- * side of the split rather than the panel's. It is translucent by design, so the photo
- * still shows through it and still has a say in which tone looks right; what it removes is
- * the photo's ability to make the choice *unreadable*. Hence [scrimFor], which goes the
- * other way from whatever tone was resolved.
+ * What differs between the backdrops is only who answers [TextTheme.AUTO], and
+ * `Backdrop.drawsOnWallpaper` is the whole of that question. On [Backdrop.NONE] the text
+ * is on the photo, so the photo is asked, through the same
+ * `WallpaperColors.HINT_SUPPORTS_DARK_TEXT` a launcher uses for its icon labels — a
+ * question no resource qualifier asks, and one the system theme answers wrongly exactly
+ * when it matters, on a light-mode phone with a dark photo. On a scrim or a panel the text
+ * is on a surface this app draws, that surface follows the system theme, and so the theme
+ * decides and the wallpaper has no say.
  *
- * Which is why only this side is answered here for a real widget. The panel colours below
- * are for views this process draws itself — the editor's preview — where a colour resolved
- * now is a colour drawn now. `WidgetRenderer` leaves the panelled widget's text to its
- * layout instead, because a `RemoteViews` colour outlives the configuration it was
- * resolved in; see the note there.
+ * Which is why [TextColors] has two shapes rather than one. A tone somebody named is the
+ * same tone in every configuration and can be frozen the moment it is read. Auto on a
+ * surface this app draws cannot be frozen at all: a colour resolved here is resolved in
+ * this process, at build time, and then kept by the launcher, while the surface behind it
+ * is resolved from the same resources at every inflate. Freeze one and not the other and
+ * a phone switched to dark mode shows the old tone on the new surface until something
+ * redraws the widget, which for a day-precision timer is the next midnight. So Auto is
+ * handed over as a resource id and the launcher resolves both together.
  */
 object WidgetPalette {
 
     data class Colors(@ColorInt val primary: Int, @ColorInt val secondary: Int)
 
-    fun forTimer(context: Context, timer: Timer): Colors =
-        forAppearance(context, timer.backdrop, timer.textTheme)
-
     /**
-     * The same resolution from loose values, so the editor's preview can show what
-     * a timer would look like before there is a [Timer] to ask about.
+     * How a variant states its text colour.
+     *
+     * [Fixed] is a colour decided here and frozen; [Themed] is a pair of resource ids for
+     * the host to resolve every time it draws, which is the only way a widget follows a
+     * change of system theme without being redrawn. See the note above for which is which
+     * and why it is not a free choice.
      */
-    fun forAppearance(context: Context, backdrop: Backdrop, textTheme: TextTheme): Colors {
-        if (backdrop == Backdrop.PANEL) {
-            // Sitting on our own panel; the -night resources already pair correctly.
-            return Colors(
-                primary = color(context, R.color.widget_text_primary),
-                secondary = color(context, R.color.widget_text_secondary),
-            )
-        }
+    sealed interface TextColors {
+        data class Fixed(val colors: Colors) : TextColors
 
-        return when (toneFor(context, textTheme)) {
-            TextTone.LIGHT -> Colors(
-                primary = color(context, R.color.widget_on_wallpaper_light_primary),
-                secondary = color(context, R.color.widget_on_wallpaper_light_secondary),
-            )
-            TextTone.DARK -> Colors(
-                primary = color(context, R.color.widget_on_wallpaper_dark_primary),
-                secondary = color(context, R.color.widget_on_wallpaper_dark_secondary),
-            )
-            TextTone.WHITE -> Colors(
-                primary = color(context, R.color.widget_on_wallpaper_white_primary),
-                secondary = color(context, R.color.widget_on_wallpaper_white_secondary),
-            )
-            TextTone.BLACK -> Colors(
-                primary = color(context, R.color.widget_on_wallpaper_black_primary),
-                secondary = color(context, R.color.widget_on_wallpaper_black_secondary),
-            )
-        }
+        data class Themed(@ColorRes val primary: Int, @ColorRes val secondary: Int) : TextColors
     }
 
     /** What `setBackgroundResource` takes to mean "none": see [backgroundFor]. */
     const val NO_BACKGROUND = 0
+
+    /**
+     * The text colours, and how the caller has to state them.
+     *
+     * The one place the rule lives. Everything else here and in `WidgetRenderer` reads its
+     * answer rather than working the question out again.
+     */
+    fun textColorsFor(
+        context: Context,
+        backdrop: Backdrop,
+        textTheme: TextTheme,
+    ): TextColors {
+        val named = textTheme.chosenTone
+        if (named != null) return TextColors.Fixed(pairFor(context, named))
+
+        // Auto. On the wallpaper the answer is the wallpaper's and has to be taken now;
+        // anywhere else it is the theme's and has to be left to the host.
+        return if (backdrop.drawsOnWallpaper) {
+            TextColors.Fixed(pairFor(context, toneFromWallpaper(context)))
+        } else {
+            when (backdrop) {
+                Backdrop.SCRIM -> TextColors.Themed(
+                    primary = R.color.widget_on_scrim_primary,
+                    secondary = R.color.widget_on_scrim_secondary,
+                )
+                // The panel and its text have always come from one qualifier, which is
+                // what keeps them a matched pair; Auto here is that pair, unchanged.
+                else -> TextColors.Themed(
+                    primary = R.color.widget_text_primary,
+                    secondary = R.color.widget_text_secondary,
+                )
+            }
+        }
+    }
+
+    fun forTimer(context: Context, timer: Timer): Colors =
+        forAppearance(context, timer.backdrop, timer.textTheme)
+
+    /**
+     * The same answer resolved to colours, for the editor's preview — where a colour
+     * resolved now really is a colour drawn now, because the activity is redrawn on a
+     * configuration change and the widget is not.
+     */
+    fun forAppearance(context: Context, backdrop: Backdrop, textTheme: TextTheme): Colors =
+        when (val colors = textColorsFor(context, backdrop, textTheme)) {
+            is TextColors.Fixed -> colors.colors
+            is TextColors.Themed -> Colors(
+                primary = color(context, colors.primary),
+                secondary = color(context, colors.secondary),
+            )
+        }
 
     /**
      * The drawable to put behind the text, or [NO_BACKGROUND] where the wallpaper is
@@ -89,38 +126,82 @@ object WidgetPalette {
      * — the host reuses the view whenever the layout id matches — so "none" has to be a
      * value this can return rather than a reason not to ask.
      *
-     * A scrim is always the opposite tone from the text, which is the whole of the
-     * mechanism: a wash the same way as the text would move both together and change
-     * nothing about whether one can be read on the other. Resolved from the tone rather
-     * than from the theme, so the two plain colours pick a scrim on the same terms as the
-     * two tinted ones and `AUTO` picks one from the same wallpaper hint the text came
-     * from.
+     * Always a resource id rather than a colour, which is what lets the two Auto entries
+     * be qualified drawables and follow the theme on their own.
      */
     @DrawableRes
-    fun backgroundFor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int =
-        when (backdrop) {
-            Backdrop.NONE -> NO_BACKGROUND
-            Backdrop.PANEL -> R.drawable.widget_background
-            Backdrop.SCRIM -> if (toneFor(context, textTheme).isLight) {
+    fun backgroundFor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int {
+        if (backdrop == Backdrop.NONE) return NO_BACKGROUND
+        val named = textTheme.chosenTone
+            ?: return when (backdrop) {
+                Backdrop.SCRIM -> R.drawable.widget_scrim_auto
+                else -> R.drawable.widget_background
+            }
+        return when (backdrop) {
+            Backdrop.SCRIM -> if (named.isLight) {
                 R.drawable.widget_scrim_dark
             } else {
                 R.drawable.widget_scrim_light
             }
-        }
-
-    /** The colour of that scrim, for the editor's preview, which blends rather than layers. */
-    @ColorInt
-    fun scrimColor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int? {
-        if (backdrop != Backdrop.SCRIM) return null
-        return if (toneFor(context, textTheme).isLight) {
-            color(context, R.color.widget_scrim_dark)
-        } else {
-            color(context, R.color.widget_scrim_light)
+            else -> if (named.isLight) {
+                R.drawable.widget_panel_dark
+            } else {
+                R.drawable.widget_panel_light
+            }
         }
     }
 
-    private fun toneFor(context: Context, textTheme: TextTheme): TextTone = resolveTextTone(
-        theme = textTheme,
+    /**
+     * The colour of that surface, for the editor's preview, which blends rather than
+     * layers. Null where there is nothing between the text and the wallpaper.
+     *
+     * A panel's colour is opaque and a scrim's is not, which the preview needs no special
+     * case for: compositing an opaque colour over the stand-in gives the colour back.
+     */
+    @ColorInt
+    fun surfaceColorFor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int? {
+        val background = backgroundFor(context, backdrop, textTheme)
+        if (background == NO_BACKGROUND) return null
+        return color(context, surfaceColorRes(backdrop, textTheme))
+    }
+
+    /** The colour each background drawable is filled with; see [surfaceColorFor]. */
+    @ColorRes
+    private fun surfaceColorRes(backdrop: Backdrop, textTheme: TextTheme): Int {
+        val named = textTheme.chosenTone
+            ?: return when (backdrop) {
+                Backdrop.SCRIM -> R.color.widget_scrim_auto
+                else -> R.color.widget_background
+            }
+        return when (backdrop) {
+            Backdrop.SCRIM -> if (named.isLight) R.color.widget_scrim_dark else R.color.widget_scrim_light
+            else -> if (named.isLight) R.color.widget_panel_dark else R.color.widget_panel_light
+        }
+    }
+
+    /** What each tone is drawn in. The same four pairs on every backdrop. */
+    private fun pairFor(context: Context, tone: TextTone): Colors = when (tone) {
+        TextTone.LIGHT -> Colors(
+            primary = color(context, R.color.widget_tone_light_primary),
+            secondary = color(context, R.color.widget_tone_light_secondary),
+        )
+        TextTone.DARK -> Colors(
+            primary = color(context, R.color.widget_tone_dark_primary),
+            secondary = color(context, R.color.widget_tone_dark_secondary),
+        )
+        TextTone.WHITE -> Colors(
+            primary = color(context, R.color.widget_tone_white_primary),
+            secondary = color(context, R.color.widget_tone_white_secondary),
+        )
+        TextTone.BLACK -> Colors(
+            primary = color(context, R.color.widget_tone_black_primary),
+            secondary = color(context, R.color.widget_tone_black_secondary),
+        )
+    }
+
+    /** Auto on the wallpaper: the photo's own answer, with the theme as a fallback. */
+    private fun toneFromWallpaper(context: Context): TextTone = resolveTextTone(
+        theme = TextTheme.AUTO,
         wallpaperSupportsDarkText = wallpaperSupportsDarkText(context),
         systemInDarkMode = systemInDarkMode(context),
     )

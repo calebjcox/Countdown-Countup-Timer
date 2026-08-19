@@ -11,6 +11,20 @@ package com.calebjcox.countdownwidgets.core
  */
 enum class Backdrop { NONE, SCRIM, PANEL }
 
+/**
+ * Whether the text on this backdrop is drawn on the wallpaper itself.
+ *
+ * The one question that decides who answers [TextTheme.AUTO]. On [Backdrop.NONE] the text
+ * really is on the photo, so the photo is what has to be asked — see [resolveTextTone].
+ * On the other two it is on a surface this app draws, which follows the system theme, so
+ * the theme is what decides and the wallpaper has no say at all.
+ *
+ * Getting that backwards is a widget that ignores dark mode: a scrim picked from the
+ * wallpaper's hint never changes when the phone does, because changing theme does not
+ * change the wallpaper.
+ */
+val Backdrop.drawsOnWallpaper: Boolean get() = this == Backdrop.NONE
+
 /** What the user asked for when the widget has no panel of its own. */
 enum class TextTheme { AUTO, LIGHT, DARK, WHITE, BLACK }
 
@@ -55,15 +69,27 @@ fun resolveTextTone(
     theme: TextTheme,
     wallpaperSupportsDarkText: Boolean?,
     systemInDarkMode: Boolean,
-): TextTone = when (theme) {
-    TextTheme.LIGHT -> TextTone.LIGHT
-    TextTheme.DARK -> TextTone.DARK
-    TextTheme.WHITE -> TextTone.WHITE
-    TextTheme.BLACK -> TextTone.BLACK
-    TextTheme.AUTO -> when (wallpaperSupportsDarkText) {
-        // A wallpaper that can carry dark text is a light wallpaper.
-        true -> TextTone.DARK
-        false -> TextTone.LIGHT
-        null -> if (systemInDarkMode) TextTone.LIGHT else TextTone.DARK
-    }
+): TextTone = theme.chosenTone ?: when (wallpaperSupportsDarkText) {
+    // A wallpaper that can carry dark text is a light wallpaper.
+    true -> TextTone.DARK
+    false -> TextTone.LIGHT
+    null -> if (systemInDarkMode) TextTone.LIGHT else TextTone.DARK
 }
+
+/**
+ * The tone this theme names outright, or null for [TextTheme.AUTO], which names none.
+ *
+ * The split every caller turns on, and the reason it is a value rather than a `when` in
+ * each of them: a named tone is the same answer on every backdrop and in every
+ * configuration, so it can be frozen the moment it is read. AUTO is the opposite — what it
+ * means depends on where the text is being drawn, and on a surface this app controls it
+ * has to stay a question the system answers again at every redraw.
+ */
+val TextTheme.chosenTone: TextTone?
+    get() = when (this) {
+        TextTheme.AUTO -> null
+        TextTheme.LIGHT -> TextTone.LIGHT
+        TextTheme.DARK -> TextTone.DARK
+        TextTheme.WHITE -> TextTone.WHITE
+        TextTheme.BLACK -> TextTone.BLACK
+    }

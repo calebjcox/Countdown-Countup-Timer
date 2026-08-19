@@ -13,6 +13,7 @@ import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
 import com.calebjcox.countdownwidgets.data.Timer
+import androidx.core.content.ContextCompat
 import com.calebjcox.countdownwidgets.testing.VariantSelection
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -66,21 +67,27 @@ class WidgetScrimTest {
     )
 
     @Test
-    fun `a scrim is drawn the other way from the text`() {
-        // All four chosen tones, because the two plain ones are the reason the choice is
-        // made from the tone rather than from the theme: WHITE has to pull the same scrim
-        // as LIGHT does, and BLACK the same as DARK.
-        val opposites = mapOf(
-            TextTheme.LIGHT to R.drawable.widget_scrim_dark,
-            TextTheme.WHITE to R.drawable.widget_scrim_dark,
-            TextTheme.DARK to R.drawable.widget_scrim_light,
-            TextTheme.BLACK to R.drawable.widget_scrim_light,
+    fun `a named tone turns the surface the other way, on a scrim and on a panel`() {
+        // The rule that makes a named colour worth offering on a panel at all. The surface
+        // follows the tone rather than the tone having to survive the surface, so choosing
+        // Black is also what makes the card light and there is nothing left to strand the
+        // text on. Both backdrops, because one rule covering both is the claim.
+        val expected = mapOf(
+            (Backdrop.SCRIM to TextTheme.LIGHT) to R.drawable.widget_scrim_dark,
+            (Backdrop.SCRIM to TextTheme.WHITE) to R.drawable.widget_scrim_dark,
+            (Backdrop.SCRIM to TextTheme.DARK) to R.drawable.widget_scrim_light,
+            (Backdrop.SCRIM to TextTheme.BLACK) to R.drawable.widget_scrim_light,
+            (Backdrop.PANEL to TextTheme.LIGHT) to R.drawable.widget_panel_dark,
+            (Backdrop.PANEL to TextTheme.WHITE) to R.drawable.widget_panel_dark,
+            (Backdrop.PANEL to TextTheme.DARK) to R.drawable.widget_panel_light,
+            (Backdrop.PANEL to TextTheme.BLACK) to R.drawable.widget_panel_light,
         )
-        for ((theme, expected) in opposites) {
+        for ((appearance, surface) in expected) {
+            val (backdrop, theme) = appearance
             assertEquals(
-                "$theme text drew a scrim the same way as itself",
-                expected,
-                scrimOf(timer.copy(backdrop = Backdrop.SCRIM, textTheme = theme)),
+                "$theme text on $backdrop got a surface the same way as itself",
+                surface,
+                scrimOf(timer.copy(backdrop = backdrop, textTheme = theme)),
             )
         }
     }
@@ -156,23 +163,27 @@ class WidgetScrimTest {
     }
 
     @Test
-    fun `a scrim takes none of the panel's colours`() {
-        // What lets a scrim share the panel's layout. That file declares the panel's
-        // -night pair on every row, and a scrim overrides all four — so this fails the
-        // moment a row stops being recoloured, which is the only way the sharing goes
-        // wrong and is invisible from the layout itself.
+    fun `a scrim overrides the colours its shared layout declares`() {
+        // What lets a scrim share the panel's layout. That file declares the panel's own
+        // -night pair as an attribute on every row, and a scrim states all four itself —
+        // so this fails the moment a row stops being recoloured, which is the only way
+        // the sharing goes wrong and is invisible from the layout depending on it.
+        //
+        // Measured against the attribute rather than against another palette call: the
+        // declared colour is the thing that would show through, so it is the thing to be
+        // different from.
         val of = timer.copy(backdrop = Backdrop.SCRIM, textTheme = TextTheme.WHITE)
         val expected = WidgetPalette.forAppearance(context, Backdrop.SCRIM, TextTheme.WHITE)
-        val panel = WidgetPalette.forAppearance(context, Backdrop.PANEL, TextTheme.WHITE)
+        val declared = ContextCompat.getColor(context, R.color.widget_text_primary)
 
         for ((id, row) in rows(root(of))) {
-            val wanted = if (id == "value" || id == "ticker") expected.primary else expected.secondary
+            val wanted =
+                if (id == "value" || id == "ticker") expected.primary else expected.secondary
             assertEquals("$id took the wrong colour", wanted, row.currentTextColor)
         }
-        // Stated separately so the test above cannot pass by the two happening to agree.
         assertNotEquals(
-            "the scrim's palette is indistinguishable from the panel's",
-            panel.primary,
+            "white text is indistinguishable from the layout's own attribute",
+            declared,
             expected.primary,
         )
     }

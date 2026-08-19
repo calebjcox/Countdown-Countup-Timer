@@ -204,11 +204,7 @@ permission. Every line also carries a shadow, because one photo can be bright at
 one end of a line of text and dark at the other.
 
 If a wallpaper publishes no hint — live wallpapers are entitled not to — the widget
-falls back to the system theme. **Text color** in the editor overrides the whole
-thing per timer: Light and Dark are tinted from the Material You palette, which is
-what makes a widget look like it belongs on the home screen and is also how it can
-fail — a wallpaper with a strong accent tints the text towards itself. White and
-Black are not tinted, so they give that up and cannot fail that way.
+falls back to the system theme.
 
 **Background** is the other half of the answer, and it has three settings rather
 than two:
@@ -216,17 +212,40 @@ than two:
 | Background | What the text sits on |
 | --- | --- |
 | None | The wallpaper, with a shadow behind every line |
-| Tinted | A translucent wash the *opposite* tone from the text |
-| Solid | The widget's own panel, paired with the text by the `-night` resources |
+| Tinted | A translucent wash, the *opposite* tone from the text |
+| Solid | The widget's own opaque panel, likewise |
 
-Tinted is the one for a wallpaper that defeats both colours. It keeps the wallpaper
+Tinted is the one for a wallpaper that defeats every colour. It keeps the wallpaper
 visible, which is the reason to want a transparent widget at all, while making the
 contrast a property of the widget instead of a bet about the photo. Its opacities
 are set against the worst case — a white wallpaper under the dark wash, a black one
 under the light — rather than by eye, so there is no photo it loses to.
 
-Solid makes the question disappear altogether: text on our own panel is a matched
-pair with it, so **Text color** hides itself there.
+### One rule for the surface, one question for Auto
+
+**The surface always goes the opposite way from the text.** Light text gets the dark
+wash or the dark panel, dark text the light ones. That is what lets **Text color**
+be offered on every background: choosing Black cannot strand the text on a dark
+card, because choosing Black is also what makes the card light.
+
+Light and Dark are tinted from the Material You palette, which is what makes a
+widget look like it belongs on the home screen and is also how they can fail — a
+wallpaper with a strong accent tints the text towards itself. White and Black are
+not tinted, so they give that up and cannot fail that way.
+
+What differs between the three backgrounds is only **who answers Auto**, and it
+turns on one thing: whether the text is on the wallpaper.
+
+- **None** — it is, so the wallpaper is asked, through the hint above.
+- **Tinted and Solid** — it is not. The text is on a surface this app draws, that
+  surface follows the system theme, so the theme decides and the wallpaper has no
+  say.
+
+Getting that backwards is a widget that ignores dark mode: a wash picked from the
+wallpaper's hint never changes when the phone does, because changing theme does not
+change the wallpaper. Auto on those two is therefore handed to the launcher as a
+resource id rather than a colour, so it resolves the text and the surface together,
+from one qualifier, at the moment it draws them.
 
 One caveat: `ACTION_WALLPAPER_CHANGED` is not delivered to manifest receivers, so
 after changing wallpaper the colour settles on the widget's next refresh rather

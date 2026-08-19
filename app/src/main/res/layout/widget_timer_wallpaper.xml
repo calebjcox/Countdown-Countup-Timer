@@ -30,21 +30,21 @@
     <TextView
         android:id="@+id/widget_name"
         style="@style/WidgetName.OnWallpaper"
-        android:textColor="@color/widget_on_wallpaper_light_secondary" />
+        android:textColor="@color/widget_tone_light_secondary" />
 
     <TextView
         android:id="@+id/widget_value"
         style="@style/WidgetValue.OnWallpaper"
-        android:textColor="@color/widget_on_wallpaper_light_primary" />
+        android:textColor="@color/widget_tone_light_primary" />
 
     <Chronometer
         android:id="@+id/widget_ticker"
         style="@style/WidgetValue.Ticking.OnWallpaper"
-        android:textColor="@color/widget_on_wallpaper_light_primary"
+        android:textColor="@color/widget_tone_light_primary"
         android:visibility="gone" />
 
     <TextView
         android:id="@+id/widget_footer"
         style="@style/WidgetFooter.OnWallpaper"
-        android:textColor="@color/widget_on_wallpaper_light_secondary" />
+        android:textColor="@color/widget_tone_light_secondary" />
 </LinearLayout>

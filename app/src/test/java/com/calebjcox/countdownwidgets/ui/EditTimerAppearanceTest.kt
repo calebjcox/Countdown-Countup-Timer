@@ -103,10 +103,11 @@ class EditTimerAppearanceTest {
             .check(R.id.target_always)
         activity.findViewById<ChipGroup>(R.id.text_theme_group).check(R.id.text_theme_white)
 
-        // The text colour control hides itself once the backdrop is a solid panel.
+        // The text colour control stays offered on a solid panel: the panel follows the
+        // tone, so a named colour cannot strand the text there.
         assertEquals(
             "text theme label on a panel",
-            View.GONE,
+            View.VISIBLE,
             activity.findViewById<View>(R.id.text_theme_label).visibility,
         )
 
