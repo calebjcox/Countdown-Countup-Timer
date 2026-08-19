@@ -76,26 +76,37 @@ object WidgetPalette {
         }
     }
 
+    /** What `setBackgroundResource` takes to mean "none": see [backgroundFor]. */
+    const val NO_BACKGROUND = 0
+
     /**
-     * The scrim to draw behind the text, or null where the backdrop is not one.
+     * The drawable to put behind the text, or [NO_BACKGROUND] where the wallpaper is
+     * meant to show through.
      *
-     * Always the opposite tone from the text, which is the whole of the mechanism: a wash
-     * the same way as the text would move both together and change nothing about whether
-     * one can be read on the other.
+     * Total rather than partial, because the caller has to be able to set a background on
+     * every backdrop rather than only on the ones that want a picture. A widget whose
+     * variant leaves the background alone keeps whichever background the last variant set
+     * — the host reuses the view whenever the layout id matches — so "none" has to be a
+     * value this can return rather than a reason not to ask.
      *
-     * Resolved from the tone rather than from the theme, so the two plain colours pick a
-     * scrim on the same terms as the two tinted ones and `AUTO` picks one from the same
-     * wallpaper hint the text came from.
+     * A scrim is always the opposite tone from the text, which is the whole of the
+     * mechanism: a wash the same way as the text would move both together and change
+     * nothing about whether one can be read on the other. Resolved from the tone rather
+     * than from the theme, so the two plain colours pick a scrim on the same terms as the
+     * two tinted ones and `AUTO` picks one from the same wallpaper hint the text came
+     * from.
      */
     @DrawableRes
-    fun scrimFor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int? {
-        if (backdrop != Backdrop.SCRIM) return null
-        return if (toneFor(context, textTheme).isLight) {
-            R.drawable.widget_scrim_dark
-        } else {
-            R.drawable.widget_scrim_light
+    fun backgroundFor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int =
+        when (backdrop) {
+            Backdrop.NONE -> NO_BACKGROUND
+            Backdrop.PANEL -> R.drawable.widget_background
+            Backdrop.SCRIM -> if (toneFor(context, textTheme).isLight) {
+                R.drawable.widget_scrim_dark
+            } else {
+                R.drawable.widget_scrim_light
+            }
         }
-    }
 
     /** The colour of that scrim, for the editor's preview, which blends rather than layers. */
     @ColorInt
