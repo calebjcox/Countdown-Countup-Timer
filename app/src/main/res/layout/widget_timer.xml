@@ -4,13 +4,24 @@
   pair, which is correct here because the text sits on a background this app
   controls. For the transparent variant see widget_timer_wallpaper.xml.
 
-  One layout serves every size: the launcher is handed a RemoteViews per size band
-  built from this file — different rows hidden, and the padding and label sizes
-  overridden per band — and picks whichever best fits the cell. The sizes declared
-  here are the roomy band's; see WidgetRenderer.BREAKPOINTS.
+  One layout serves every size: the launcher is handed a RemoteViews per entry of a
+  size map built from this file — different rows hidden, and the padding and label
+  sizes overridden per entry — and picks whichever best fits the cell. The sizes
+  declared here are what a cell with room for everything gets; see
+  WidgetRenderer.variantFor, which decides that from the cell rather than from a
+  table of them.
+
+  The root is @android:id/background rather than an id of our own, and it has to be:
+  a launcher rounds the corners of the widget's background view, and that id is the
+  only way it can be told which view that is. Told nothing, Launcher3 guesses — it
+  walks down from the root through views that draw nothing, stops at the first that
+  does, and rounds *that*, taking the whole widget with it. A variant showing one row
+  is a chain of exactly that shape, so the guess lands on the row of text and the
+  launcher clips the widget to a rounded box the height of one line. See
+  WidgetRoundingTest, which pins the rule this satisfies.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_root"
+    android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
@@ -30,7 +41,7 @@
 
     <Chronometer
         android:id="@+id/widget_ticker"
-        style="@style/WidgetValue"
+        style="@style/WidgetValue.Ticking"
         android:textColor="@color/widget_text_primary"
         android:visibility="gone" />
 

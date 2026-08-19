@@ -4,18 +4,19 @@
     <dimen name="widget_corner_radius">@android:dimen/system_app_widget_background_radius</dimen>
 
     <!--
-      How much room the rows get: padding per density band in WidgetRenderer, and the
-      range a label is drawn in.
+      How much room the rows get: the two paddings WidgetRenderer chooses between, and
+      the floor a label is drawn from.
 
       The compact padding is what makes three rows fit a one-row cell: at 6dp a 68dp
       cell has 56dp inside it, which is the whole reason the "until" line is reachable
       at 2x1.
 
-      The label range is a range, not a size per band: the floor is the smallest a label
-      may be drawn at all, the ceiling is where growing one stops helping, and everything
-      between is decided by the cell in front of it, which WidgetRenderer measures. 12sp
-      is the floor because a 2x1 has no surplus to grow into and is still the size a
-      label has to be legible at.
+      A label has a floor and no ceiling, and neither is a size per cell size: 12sp is the
+      smallest a label may be drawn at all, because a 2x1 has no surplus to grow into and
+      is still the size a caption has to be legible at, and how far above it one goes is
+      a proportion of the value beside it, measured by WidgetRenderer against the cell in
+      front of it. A ceiling in dp here would be the trap described below in miniature —
+      a size past which a widget dragged out larger stops changing.
 
       They are dimens rather than literals because both sides need the same numbers:
       styles.xml and widget_preview.xml to declare what a raw inflation shows,
@@ -25,22 +26,29 @@
     <dimen name="widget_padding">10dp</dimen>
     <dimen name="widget_padding_compact">6dp</dimen>
     <dimen name="widget_label_text_min">12sp</dimen>
-    <dimen name="widget_label_text_max">17sp</dimen>
 
     <!--
-      The value's box, and the range its auto-sizing searches inside it.
+      The value's box, and the range searched inside it.
 
       The two text sizes are read from both sides for the same reason as the metrics
-      above: styles.xml hands them to `autoSizeM(in|ax)TextSize`, and WidgetRenderer
-      turns them into the line heights that bound the box.
+      above: WidgetRenderer searches between them for the static value, and styles.xml
+      hands them to `autoSizeM(in|ax)TextSize` for the ticking one, which sizes itself.
+
+      The maximum is a sanity bound, never the size a cell settles on. What limits the
+      text is the cell — how wide it is, and how much height is left once the labels have
+      taken their share — and a maximum low enough to bind is a size past which a widget
+      dragged out larger stops changing, growing only its margins. So it goes above what
+      any cell can ask for: 160sp is where a countdown stops being a number on a home
+      screen and starts being a poster, and the width of a phone's widest widget runs out
+      well before it.
 
       The height is only the default the layouts declare — every variant the renderer
-      builds sets its own, measured against the cell it is for. 56dp is what a 44sp
-      line needs, so the default is the largest box that can ever be useful.
+      builds sets its own, measured against the cell it is for. 56dp is a sane default
+      for a raw inflation, not a bound on anything.
     -->
     <dimen name="widget_value_height">56dp</dimen>
     <dimen name="widget_value_text_min">11sp</dimen>
-    <dimen name="widget_value_text_max">44sp</dimen>
+    <dimen name="widget_value_text_max">160sp</dimen>
 
     <dimen name="screen_margin">16dp</dimen>
     <dimen name="section_spacing">20dp</dimen>

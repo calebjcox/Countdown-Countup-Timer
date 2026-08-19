@@ -124,11 +124,27 @@ out. Which rows appear is decided by width, because width is what a row needs:
 Height then decides how large each of those is drawn, measured against the real cell
 rather than the band — see `WidgetRenderer.metricsFor`.
 
+### Filling the cell
+
+Nothing stops the text growing but the cell. There is a maximum in `dimens.xml` and it
+is a sanity bound rather than a size anything reaches: what actually decides is how wide
+the cell is, and how much of its height is left once the name and the date have taken
+their share. Drag a widget out to twice the size and the number is drawn twice as large,
+rather than the same number in the middle of more space.
+
+The share is a proportion — a label is drawn at about two fifths of the value, and may
+grow to two thirds of it where the value ran out of width before it ran out of height.
+Reserving a proportion rather than a fixed size is what keeps a caption from being
+squeezed down to its floor beside a number that has taken the whole cell. It is reserved
+from the *count* of labels and not from their text, so the size of the number is a
+property of the number: a long name is drawn smaller to fit the width, and never at the
+number's expense.
+
 ### Wrapping
 
 One cell is not wide enough for `2d 16h 46m` on one line at any size worth reading, so
 with **Let the countdown use more than one line** on — it is, by default — the value may
-break across up to three lines where that draws it larger:
+break across as many lines as it has words, where that draws it larger:
 
 ```
 2d 16h 46m        2d
@@ -136,10 +152,20 @@ break across up to three lines where that draws it larger:
      ↓            46m
 ```
 
+A line per word and no fewer, because every line ends at a space (see below) and a value
+therefore cannot occupy more lines than that. Abbreviated units give three lines here and
+spelled-out ones give six, which is the point: `11 months, 3 weeks, 4 days` down a
+one-column widget is six short lines of large text rather than three long lines of small.
+
 It is permission rather than instruction. Each candidate number of lines is measured the
 way the platform's own auto-sizing measures it, and the extra line is taken only if it
 comes back bigger, or if it rescues a value that was being cut off. On a 2x1 with room
 for its number nothing changes, which is what lets the setting default to on.
+
+A tall widget is the other place it earns its keep, for the same reason and not an
+opposite one. One line of `4 months, 16 days` across four columns runs out of width long
+before a five-row cell runs out of height; each further line it is allowed keeps it
+growing, and the height a single line cannot use would otherwise go to margin.
 
 The cut-off case is worth spelling out, because it was a bug rather than a preference.
 The value row has no ellipsis. Once auto-sizing hits its floor and the text still needs a
@@ -147,9 +173,14 @@ second line, a `TextView` held to one draws that line and silently discards the 
 a 2x1 counting `2 years, 0 months, 8 days` was reading `2 years, 0 months, 8` with
 nothing to say it had stopped. Wrapping is what puts the rest of it back.
 
-Two things it will not do. It never breaks inside a unit — `25d` has no space in it, and
-a line breaker left alone will happily put `25` above `d` — and it never takes height
-from the name or the date, which are sized first and against a single line.
+One thing it will not do: it never breaks inside a word. `25d` has no space in it, and a
+line breaker left alone will happily put `25` above `d`, so a size that can only fit its
+lines by doing that is turned down rather than the wrap.
+
+That is a rule about words, not about units. `3` above `weeks,` breaks at a space like
+any other line, and on a widget narrow enough to be asking it is the break that keeps the
+text large — so the spelled-out form does separate a number from its unit name, and
+should.
 
 ## Reading on a wallpaper
 

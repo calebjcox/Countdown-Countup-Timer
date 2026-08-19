@@ -96,21 +96,114 @@ class WidgetSpacingTest {
 
     @Test
     fun `the value's box hugs a spelled-out date at every size`() {
-        for ((width, height) in CELLS) assertHugs(spelledOut, width, height)
+        for ((width, height) in CELLS + TALL) assertHugs(spelledOut, width, height)
     }
 
     @Test
     fun `the value's box hugs an abbreviated one at every size`() {
-        for ((width, height) in CELLS) assertHugs(abbreviated, width, height)
+        for ((width, height) in CELLS + TALL) assertHugs(abbreviated, width, height)
     }
 
     /** The rows are the whole widget: nothing may be pushed out of the cell. */
     @Test
     fun `the rows fit the cell they were built for`() {
-        for ((width, height) in CELLS) {
+        for ((width, height) in CELLS + TALL) {
             assertRowsFit(spelledOut, width, height)
             assertRowsFit(abbreviated, width, height)
         }
+    }
+
+    /**
+     * The regression at the other end of the range. A maximum text size low enough for a
+     * cell to reach is a size the widget stops changing at: past it a bigger cell draws
+     * the same number with more and more space around it, which is what 44sp did to
+     * everything above a 4x2. Each cell here has appreciably more room than the one
+     * before and has to spend it on the text.
+     */
+    @Test
+    fun `the value grows with the cell it is given`() {
+        val drawn = GROWING.map { (width, height) ->
+            Triple(width, height, visibleValue(render(abbreviated, width, height)).textSize)
+        }
+        for ((smaller, larger) in drawn.zipWithNext()) {
+            assertTrue(
+                "a ${larger.first}x${larger.second} cell drew its value at " +
+                    "${larger.third}px, no larger than the ${smaller.third}px a " +
+                    "${smaller.first}x${smaller.second} cell already managed",
+                larger.third > smaller.third,
+            )
+        }
+    }
+
+    /**
+     * And the rows have to *fill* what they were given, rather than growing a little and
+     * leaving the rest as margin. Sixty per cent is a low bar deliberately — the exact
+     * figure depends on where the line breaks fall — but a flat ceiling on the text size
+     * misses it by a wide margin on every cell here.
+     */
+    @Test
+    fun `a cell with height to spare spends it on the text`() {
+        for ((width, height) in TALL) {
+            val root = render(abbreviated, width, height)
+            val used = (0 until root.childCount)
+                .map { root.getChildAt(it) }
+                .filter { it.visibility == View.VISIBLE }
+                .sumOf { it.height } + root.paddingTop + root.paddingBottom
+
+            assertTrue(
+                "at ${width}x$height the rows use ${px(used)}dp of a ${height}dp cell, " +
+                    "so most of the widget is empty space",
+                px(used) >= 0.6f * height,
+            )
+        }
+    }
+
+    /**
+     * A value with more words than lines is a value that stops growing early. Spelled-out
+     * units are six words, and held to three lines they are three long lines sized by the
+     * width of the cell — on a widget the height of the screen that leaves most of the
+     * height as margin, whatever the ceiling on the text size says.
+     */
+    @Test
+    fun `a value spends every line it has words for`() {
+        val root = render(spelledOut, 344f, 620f)
+        val value = visibleValue(root)
+        val lines = requireNotNull(value.layout) { "the value never laid out" }.lineCount
+        val used = (0 until root.childCount)
+            .map { root.getChildAt(it) }
+            .filter { it.visibility == View.VISIBLE }
+            .sumOf { it.height } + root.paddingTop + root.paddingBottom
+
+        assertTrue(
+            "'${value.text}' took $lines lines of a 344x620 cell at ${value.textSize}px",
+            lines > 3,
+        )
+        assertTrue(
+            "the rows use ${px(used)}dp of a 620dp cell",
+            px(used) >= 0.6f * 620f,
+        )
+    }
+
+    /**
+     * The labels come with it. A caption at the 12sp floor beside a number four times its
+     * size is what reserving a fixed amount of height for it would produce; a share of
+     * the value is what keeps the three rows looking like one widget.
+     */
+    @Test
+    fun `the labels keep pace with the value on a cell with room to spare`() {
+        val scale = context.resources.displayMetrics.scaledDensity
+        val value = visibleValue(render(abbreviated, 344f, 480f)).textSize / scale
+        val (name, footer) = labelSizes(abbreviated, 344f, 480f)
+
+        assertTrue(
+            "a 344x480 cell drew a ${value}sp value beside ${name}sp / ${footer}sp labels",
+            minOf(name, footer) >= 20f,
+        )
+        assertTrue(
+            "the labels reached ${maxOf(name, footer)}sp against a ${value}sp value, " +
+                "which is no longer a caption",
+            maxOf(name, footer) <= 0.7f * value,
+        )
     }
 
     /**
@@ -201,6 +294,33 @@ class WidgetSpacingTest {
                 "${oneLine.textSize}px one line already managed",
             wrapped.textSize > oneLine.textSize,
         )
+    }
+
+    /**
+     * Every line ends at a space, which is the rule a box cannot express and so the rule
+     * the launcher's own auto-sizing was free to break. `months,` is wider than a
+     * one-column cell at the size a box alone allows, and the layout that fits by putting
+     * `mo` above `nths,` fits it exactly as well as the one that does not — so nothing
+     * short of choosing the size here keeps them apart.
+     */
+    @Test
+    fun `no line ends in the middle of a word`() {
+        for ((width, height) in CELLS + TALL) {
+            for (timer in listOf(spelledOut, abbreviated)) {
+                val value = visibleValue(render(timer, width, height))
+                val layout = requireNotNull(value.layout) { "the value never laid out" }
+                val drawn = minOf(layout.lineCount, value.maxLines)
+                for (line in 0 until drawn - 1) {
+                    val end = layout.getLineEnd(line)
+                    assertTrue(
+                        "at ${width}x$height '${value.text}' was drawn as " +
+                            "'${value.text.substring(layout.getLineStart(line), end)}' and " +
+                            "the rest, splitting a word",
+                        value.text[end - 1].isWhitespace(),
+                    )
+                }
+            }
+        }
     }
 
     /**
@@ -405,6 +525,29 @@ class WidgetSpacingTest {
             344f to 88f,
             344f to 152f,
             400f to 60f,
+        )
+
+        /**
+         * Cells with more height than any of the rows asks for: a widget dragged out to
+         * three, four or five rows. Kept apart from [CELLS] because one assertion up
+         * there — that a cell with the width for its value leaves it on one line — is
+         * about cells whose height is spoken for, and these are exactly the ones where a
+         * second line is worth taking.
+         */
+        val TALL = listOf(
+            130f to 300f,
+            216f to 240f,
+            290f to 300f,
+            344f to 300f,
+            344f to 480f,
+        )
+
+        /** Four cells in ascending order of the room they have for a number. */
+        val GROWING = listOf(
+            140f to 74f,
+            344f to 152f,
+            344f to 300f,
+            344f to 480f,
         )
     }
 }

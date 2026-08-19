@@ -4,7 +4,7 @@
   runtime.
 
   Deliberately built to the *compact* metrics rather than the layouts' roomy defaults,
-  because the picker frames this at the advertised 2x1 and that is the band a 2x1 cell
+  because the picker frames this at the advertised 2x1 and compact is what a 2x1 cell
   resolves to. A preview drawn at any other density is a promise the dropped widget
   does not keep.
 

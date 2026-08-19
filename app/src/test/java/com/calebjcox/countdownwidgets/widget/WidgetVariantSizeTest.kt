@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.SizeF
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.RemoteViews
 import com.calebjcox.countdownwidgets.R
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.TimeField
@@ -13,6 +14,7 @@ import com.calebjcox.countdownwidgets.testing.VariantSelection
 import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -140,6 +142,125 @@ class WidgetVariantSizeTest {
         assertRows(90f, 30f, name = false, footer = false)
     }
 
+    /**
+     * The same answers as the cases above, stated as the rule they come from and checked
+     * a dp either side of every threshold there is.
+     *
+     * The cases above are what the widget does on real cells; this is *why*, and it is the
+     * assertion that fails if the rows ever stop being a function of the box. What decides
+     * them is `WidgetRenderer.variantFor` — width and height against four sizes — but the
+     * launcher reaches it through nearest-fitting-neighbour over the map's keys, which is
+     * a different test entirely. The two agree because the keys are the thresholds and the
+     * thresholds nest; nothing here knows that, which is the point of checking it from
+     * outside at sizes chosen to straddle each one.
+     *
+     * The rule is written out rather than read from the renderer, because a test that
+     * asked the renderer what it thinks would agree with it however wrong it was. Editing
+     * a threshold means editing this line, which is the review the numbers deserve.
+     */
+    @Test
+    fun `the rows and the padding follow the thresholds and nothing else`() {
+        val views = build(timer)
+        for (width in PROBED_WIDTHS) {
+            for (height in PROBED_HEIGHTS) {
+                val view = select(views, width, height)
+                val at = "at ${width}x$height"
+
+                assertEquals(
+                    "name visibility $at",
+                    width >= 92f && height >= 50f,
+                    view.findViewById<View>(R.id.widget_name).visibility == View.VISIBLE,
+                )
+                assertEquals(
+                    "footer visibility $at",
+                    width >= 110f && height >= 68f,
+                    view.findViewById<View>(R.id.widget_footer).visibility == View.VISIBLE,
+                )
+                val roomy = width >= 130f && height >= 110f
+                assertEquals(
+                    "padding $at",
+                    context.resources.getDimensionPixelSize(
+                        if (roomy) R.dimen.widget_padding else R.dimen.widget_padding_compact,
+                    ),
+                    view.paddingTop,
+                )
+            }
+        }
+    }
+
+    /**
+     * The same thresholds on the map a live widget is really given, where they bind one
+     * way rather than both.
+     *
+     * The equality above holds because every key is a threshold and the thresholds nest.
+     * A widget whose host has reported its cells is keyed on those too — that is what
+     * sizes the text for the cell it is drawn in — and a reported cell is at whatever
+     * shape the launcher's grid makes it, so the keys no longer nest and the equality no
+     * longer holds. A box the host draws *without* having reported it can then land on a
+     * reported cell's key and take its rows: 92x300 has the width for a name, and a
+     * reported 91x300 cell sits a squared dp from it while the name's own threshold sits
+     * sixty thousand.
+     *
+     * What survives is the direction, and it is the whole reason reported keys are safe to
+     * add: a box draws a row only where it has the room for the row. The launcher picks an
+     * entry that *fits* the box, `variantFor` is monotone in the box, so the variant a
+     * selection lands on is at or below the one the box has earned — never above it, which
+     * is the failure that would clip text or crush the padding. Losing a row to a
+     * neighbouring key is a widget briefly plainer than it could be, and it lasts until the
+     * host reports the box it is drawing.
+     *
+     * So: implications rather than equalities, over the same grid, on the maps a real host
+     * produces. An equality here would fail on a correct renderer.
+     */
+    @Test
+    fun `no reported cell makes a box draw a row it has no room for`() {
+        val roomyPadding = context.resources.getDimensionPixelSize(R.dimen.widget_padding)
+        for (cells in REPORTED) {
+            val views = build(timer, cells)
+            for (width in PROBED_WIDTHS) {
+                for (height in PROBED_HEIGHTS) {
+                    val view = select(views, width, height)
+                    val at = "at ${width}x$height with $cells reported"
+
+                    if (isVisible(view, R.id.widget_name)) {
+                        assertTrue("a name is drawn $at", width >= 92f && height >= 50f)
+                    }
+                    if (isVisible(view, R.id.widget_footer)) {
+                        assertTrue("a date is drawn $at", width >= 110f && height >= 68f)
+                    }
+                    if (view.paddingTop == roomyPadding) {
+                        assertTrue("roomy padding $at", width >= 130f && height >= 110f)
+                    }
+                    // The value is never dropped, whatever entry the box landed on — the
+                    // implications above would all hold on a widget that drew nothing.
+                    assertEquals(
+                        "value visibility $at",
+                        View.VISIBLE,
+                        view.findViewById<View>(R.id.widget_value).visibility,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun build(timer: Timer, cells: List<SizeF> = emptyList()): RemoteViews =
+        WidgetRenderer.build(
+            context = context,
+            appWidgetId = 1,
+            timer = timer,
+            nowMillis = nowMillis,
+            zone = ZoneId.of("America/Denver"),
+            cells = cells,
+        )
+
+    private fun isVisible(view: View, id: Int): Boolean =
+        view.findViewById<View>(id).visibility == View.VISIBLE
+
+    /** The variant a launcher would draw this box in, inflated. */
+    private fun select(views: RemoteViews, widthDp: Float, heightDp: Float): View =
+        VariantSelection.forSize(views, context, SizeF(widthDp, heightDp))
+            .apply(context, FrameLayout(context))
+
     private fun assertRows(
         widthDp: Float,
         heightDp: Float,
@@ -147,16 +268,7 @@ class WidgetVariantSizeTest {
         footer: Boolean,
         timer: Timer = this.timer,
     ) {
-        val views = WidgetRenderer.build(
-            context = context,
-            appWidgetId = 1,
-            timer = timer,
-            nowMillis = nowMillis,
-            zone = ZoneId.of("America/Denver"),
-        )
-        val size = SizeF(widthDp, heightDp)
-        val view = VariantSelection.forSize(views, context, size)
-            .apply(context, FrameLayout(context))
+        val view = select(build(timer), widthDp, heightDp)
 
         assertEquals(
             "name visibility at ${widthDp}x$heightDp",
@@ -174,6 +286,41 @@ class WidgetVariantSizeTest {
             "value visibility at ${widthDp}x$heightDp",
             View.VISIBLE,
             view.findViewById<View>(R.id.widget_value).visibility,
+        )
+    }
+
+    private companion object {
+        /**
+         * A dp either side of each threshold's width, plus the widths real cells come in
+         * at and one below anything the provider allows. The boundaries are where a rule
+         * and a nearest-neighbour lookup part company, so they are most of the list.
+         */
+        val PROBED_WIDTHS = listOf(
+            30f, 39f, 40f, 41f, 64f, 91f, 92f, 93f, 105f, 109f, 110f, 111f,
+            129f, 130f, 131f, 216f, 344f, 600f,
+        )
+
+        /** The same for heights. */
+        val PROBED_HEIGHTS = listOf(
+            30f, 39f, 40f, 41f, 45f, 49f, 50f, 51f, 67f, 68f, 69f, 76f, 84f,
+            109f, 110f, 111f, 152f, 300f,
+        )
+
+        /**
+         * Cell sets a host really reports, each chosen for a different way a reported key
+         * can sit near a threshold.
+         *
+         * A phone's 3x1 pair is the ordinary case. The tablet pair is the one whose two
+         * cells no ladder of fixed rungs can separate, so it is the pair the reported keys
+         * exist for. The last is adversarial rather than observed: a one-column tower a dp
+         * short of the name's width, which is a key that draws no name sitting next to
+         * boxes that have the width for one. It is where an equality assertion would fail
+         * and the implication has to hold.
+         */
+        val REPORTED = listOf(
+            listOf(SizeF(216f, 91f), SizeF(500f, 53f)),
+            listOf(SizeF(600f, 800f), SizeF(900f, 520f)),
+            listOf(SizeF(91f, 300f)),
         )
     }
 }
