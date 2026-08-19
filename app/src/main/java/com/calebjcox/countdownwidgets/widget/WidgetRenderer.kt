@@ -14,10 +14,12 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.DimenRes
 import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.Display
 import com.calebjcox.countdownwidgets.core.DurationMath
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.Rendering
+import com.calebjcox.countdownwidgets.core.shows
 import com.calebjcox.countdownwidgets.data.Timer
 import com.calebjcox.countdownwidgets.ui.EditTimerActivity
 import com.calebjcox.countdownwidgets.ui.WidgetConfigActivity
@@ -419,6 +421,18 @@ object WidgetRenderer {
         val (detail, density) = variant
         val views = RemoteViews(context.packageName, layoutFor(timer))
 
+        // Before the padding, and the order is load-bearing: setting a background applies
+        // the drawable's own padding to the view, so a background set afterwards would
+        // discard what the line below just chose. The scrims declare none, which makes
+        // this a precaution rather than a fix — and one that costs nothing to keep.
+        //
+        // Set by resource rather than by colour so the shape carries the corner radius,
+        // and reached by name because `RemoteViews` has no wrapper for it; `View` marks
+        // `setBackgroundResource` @RemotableViewMethod, which is what makes that legal.
+        WidgetPalette.scrimFor(context, timer.backdrop, timer.textTheme)?.let { scrim ->
+            views.setInt(android.R.id.background, "setBackgroundResource", scrim)
+        }
+
         // Applied explicitly on every variant rather than left to whichever XML default
         // happens to match it, because a variant whose spacing comes from somewhere else
         // is a variant that moves when that somewhere else does.
@@ -433,12 +447,19 @@ object WidgetRenderer {
         )
         val footer = targetSummary(context, timer, display)
 
-        // A row the timer has switched off, or a name row on a timer with no name,
-        // is not drawn whatever the variant asked for — so everything below is
-        // measured against the rows that will actually be drawn, and the value grows
-        // into the room a dropped row leaves rather than centring on a gap.
-        val showName = detail != Detail.VALUE && timer.showName && timer.name.isNotBlank()
-        val showFooter = detail == Detail.EVERYTHING && timer.showTarget
+        // What the variant worked out is only half of it: the timer says whether that
+        // decision is the cell's at all, and a name row on a timer with no name is not
+        // drawn whatever either of them wanted. So everything below is measured against
+        // the rows that will actually be drawn, and the value grows into the room a
+        // dropped row leaves rather than centring on a gap.
+        //
+        // ALWAYS can ask for more rows than the variant was sized for. It is allowed to:
+        // the value keeps its own floor either way, and the root lays the rows out in
+        // reading order, so a cell too small for what was asked loses the bottom of the
+        // last row rather than any of the number.
+        val showName = timer.nameVisibility.shows(detail != Detail.VALUE) &&
+            timer.name.isNotBlank()
+        val showFooter = timer.targetVisibility.shows(detail == Detail.EVERYTHING)
         val text = Text(
             value = valueText(head, display.tailMillis),
             name = if (showName) timer.name else null,
@@ -478,7 +499,7 @@ object WidgetRenderer {
         // next midnight. Leaving the pair to the resource system is what keeps it
         // together, and it costs a widget on a panel nothing: the two colours agree by
         // construction because they come from the same qualifier.
-        if (!timer.showBackground) {
+        if (timer.backdrop != Backdrop.PANEL) {
             val palette = WidgetPalette.forTimer(context, timer)
             views.setTextColor(R.id.widget_name, palette.secondary)
             views.setTextColor(R.id.widget_value, palette.primary)
@@ -1013,9 +1034,18 @@ object WidgetRenderer {
      * are separate files rather than one file configured at runtime because
      * `RemoteViews` dispatches only single-argument remotable methods, and
      * `setShadowLayer` takes four — so a shadow can only be declared in XML.
+     *
+     * Which is why a scrim is not a third file. A background *is* settable at runtime,
+     * and a scrim wants the shadow the wallpaper layout already carries: it holds the
+     * text together where the wash alone is not quite enough, at the edges of a very
+     * bright or very dark photo.
      */
     private fun layoutFor(timer: Timer): Int =
-        if (timer.showBackground) R.layout.widget_timer else R.layout.widget_timer_wallpaper
+        if (timer.backdrop == Backdrop.PANEL) {
+            R.layout.widget_timer
+        } else {
+            R.layout.widget_timer_wallpaper
+        }
 
     /**
      * Embeds the calendar part into the chronometer's own format string. The `%s` is

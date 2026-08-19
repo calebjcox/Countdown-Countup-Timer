@@ -124,6 +124,14 @@ out. Which rows appear is decided by width, because width is what a row needs:
 Height then decides how large each of those is drawn, measured against the real cell
 rather than the band — see `WidgetRenderer.metricsFor`.
 
+That table is the *default*, not the rule. Each of the two label rows carries its own
+setting — **Always**, **If it fits**, **Never** — and only the middle one, which is the
+default, consults the table at all. Always is for the case the table gets wrong on
+purpose: a 1x1 put on the home screen to show one name wants the name more than it wants
+the largest possible number. It costs what it says it costs, since the room comes out of
+the countdown, and a cell too small for everything asked of it loses the bottom of the
+last row rather than any of the number.
+
 ### Filling the cell
 
 Nothing stops the text growing but the cell. There is a maximum in `dimens.xml` and it
@@ -197,9 +205,28 @@ one end of a line of text and dark at the other.
 
 If a wallpaper publishes no hint — live wallpapers are entitled not to — the widget
 falls back to the system theme. **Text color** in the editor overrides the whole
-thing with an explicit Light or Dark per timer. Switch the background on instead
-and the question disappears: text on our own panel is a matched pair with it, so
-the setting hides itself.
+thing per timer: Light and Dark are tinted from the Material You palette, which is
+what makes a widget look like it belongs on the home screen and is also how it can
+fail — a wallpaper with a strong accent tints the text towards itself. White and
+Black are not tinted, so they give that up and cannot fail that way.
+
+**Background** is the other half of the answer, and it has three settings rather
+than two:
+
+| Background | What the text sits on |
+| --- | --- |
+| None | The wallpaper, with a shadow behind every line |
+| Tinted | A translucent wash the *opposite* tone from the text |
+| Solid | The widget's own panel, paired with the text by the `-night` resources |
+
+Tinted is the one for a wallpaper that defeats both colours. It keeps the wallpaper
+visible, which is the reason to want a transparent widget at all, while making the
+contrast a property of the widget instead of a bet about the photo. Its opacities
+are set against the worst case — a white wallpaper under the dark wash, a black one
+under the light — rather than by eye, so there is no photo it loses to.
+
+Solid makes the question disappear altogether: text on our own panel is a matched
+pair with it, so **Text color** hides itself there.
 
 One caveat: `ACTION_WALLPAPER_CHANGED` is not delivered to manifest receivers, so
 after changing wallpaper the colour settles on the widget's next refresh rather

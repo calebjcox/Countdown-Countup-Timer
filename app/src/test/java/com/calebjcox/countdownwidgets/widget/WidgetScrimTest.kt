@@ -1,0 +1,136 @@
+package com.calebjcox.countdownwidgets.widget
+
+import android.content.Context
+import android.util.SizeF
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.core.Backdrop
+import com.calebjcox.countdownwidgets.core.Precision
+import com.calebjcox.countdownwidgets.core.TextTheme
+import com.calebjcox.countdownwidgets.core.TimeField
+import com.calebjcox.countdownwidgets.core.TimerSpec
+import com.calebjcox.countdownwidgets.data.Timer
+import com.calebjcox.countdownwidgets.testing.VariantSelection
+import java.time.LocalDateTime
+import java.time.ZoneId
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import org.robolectric.RuntimeEnvironment
+
+/**
+ * Pins the middle backdrop: a wash the text can be read on, drawn the other way from the
+ * text itself.
+ *
+ * The report this answers: *"I like that its background is transparent, but none of the
+ * text color options show well on my background."* Every colour the widget can draw on
+ * the wallpaper is a bet about the photo underneath, and a photo bright at one end of a
+ * line and dark at the other wins that bet against all of them. A scrim stops it being a
+ * bet — which it only does while it goes the *opposite* way from the text, so that is
+ * what these check rather than that a background exists.
+ *
+ * The direction is the part a refactor can silently invert: both colours are drawn from
+ * the same resolved tone, so a single flipped condition in [WidgetPalette.scrimFor] gives
+ * light text on a light wash, which looks deliberate in the editor and is illegible on a
+ * home screen.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
+class WidgetScrimTest {
+
+    private val context: Context get() = RuntimeEnvironment.getApplication()
+
+    private val zone: ZoneId = ZoneId.of("America/Denver")
+
+    private val nowMillis =
+        LocalDateTime.parse("2026-08-09T13:37:42").atZone(zone).toInstant().toEpochMilli()
+
+    private val timer = Timer(
+        id = "christmas",
+        name = "Christmas",
+        spec = TimerSpec.of(
+            target = LocalDateTime.parse("2026-12-25T00:00"),
+            precision = Precision.DATE,
+            fields = setOf(TimeField.YEAR, TimeField.MONTH, TimeField.DAY),
+        ),
+    )
+
+    @Test
+    fun `a scrim is drawn the other way from the text`() {
+        // All four chosen tones, because the two plain ones are the reason the choice is
+        // made from the tone rather than from the theme: WHITE has to pull the same scrim
+        // as LIGHT does, and BLACK the same as DARK.
+        val opposites = mapOf(
+            TextTheme.LIGHT to R.drawable.widget_scrim_dark,
+            TextTheme.WHITE to R.drawable.widget_scrim_dark,
+            TextTheme.DARK to R.drawable.widget_scrim_light,
+            TextTheme.BLACK to R.drawable.widget_scrim_light,
+        )
+        for ((theme, expected) in opposites) {
+            assertEquals(
+                "$theme text drew a scrim the same way as itself",
+                expected,
+                scrimOf(timer.copy(backdrop = Backdrop.SCRIM, textTheme = theme)),
+            )
+        }
+    }
+
+    @Test
+    fun `the other two backdrops draw no scrim`() {
+        // NONE is the wallpaper showing through, and PANEL brings its own background from
+        // the layout — neither is a case a scrim has anything to add to.
+        assertNull(scrimOf(timer.copy(backdrop = Backdrop.NONE)))
+        assertNotNull(
+            "the panel lost the background its layout declares",
+            root(timer.copy(backdrop = Backdrop.PANEL)).background,
+        )
+    }
+
+    @Test
+    fun `a scrim does not cost the variant its padding`() {
+        // Setting a background applies the drawable's own padding to the view, so a
+        // background set after the padding would quietly discard it and the rows would
+        // run to the edge of the widget. The renderer sets it first; this is what says so.
+        val bare = root(timer.copy(backdrop = Backdrop.NONE))
+        val scrimmed = root(timer.copy(backdrop = Backdrop.SCRIM))
+
+        assertEquals(
+            "a scrim changed the padding the variant chose",
+            listOf(
+                bare.paddingLeft, bare.paddingTop, bare.paddingRight, bare.paddingBottom,
+            ),
+            listOf(
+                scrimmed.paddingLeft, scrimmed.paddingTop,
+                scrimmed.paddingRight, scrimmed.paddingBottom,
+            ),
+        )
+    }
+
+    /** The drawable resource behind the widget's root, or null where it has no background. */
+    private fun scrimOf(of: Timer): Int? =
+        root(of).background?.let { shadowOf(it).createdFromResId }
+
+    private fun root(of: Timer): LinearLayout {
+        val views = WidgetRenderer.build(
+            context = context,
+            appWidgetId = 1,
+            timer = of,
+            nowMillis = nowMillis,
+            zone = zone,
+            cells = listOf(CELL),
+        )
+        return VariantSelection.forSize(views, context, CELL)
+            .apply(context, FrameLayout(context)) as LinearLayout
+    }
+
+    private companion object {
+        /** Roomy enough for all three rows, so nothing here turns on a dropped one. */
+        val CELL = SizeF(250f, 120f)
+    }
+}

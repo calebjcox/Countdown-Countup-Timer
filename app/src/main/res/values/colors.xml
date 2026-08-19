@@ -24,8 +24,37 @@
     <color name="widget_on_wallpaper_dark_primary">@android:color/system_accent1_700</color>
     <color name="widget_on_wallpaper_dark_secondary">@android:color/system_neutral1_800</color>
 
+    <!--
+      The plain pair, and the reason there is one. Everything above is tinted from the
+      wallpaper, which is what makes a widget look like it belongs there and is also how
+      it fails: a wallpaper with a strong accent tints the text towards itself, and text
+      a few steps from what is behind it cannot be read at any size. These give that up
+      and cannot fail that way. The secondary of each is the same colour softened rather
+      than a second hue, because there is no palette here to take one from.
+    -->
+    <color name="widget_on_wallpaper_white_primary">#FFFFFFFF</color>
+    <color name="widget_on_wallpaper_white_secondary">#E6FFFFFF</color>
+    <color name="widget_on_wallpaper_black_primary">#FF000000</color>
+    <color name="widget_on_wallpaper_black_secondary">#CC000000</color>
+
     <!-- Behind text on the wallpaper, where the photo underneath is unknowable. -->
     <color name="widget_text_shadow">#99000000</color>
+
+    <!--
+      The scrim, named for its own tone: the dark one goes under light text and the light
+      one under dark text, which is the whole of what a scrim is for.
+
+      The opacities are the worst case rather than a look. A scrim only has to work
+      against the wallpaper that fights it — a white one under the dark scrim, a black one
+      under the light — so those are what they are set against. 65% black over white lands
+      near #595959, which clears about 5.5:1 against the light text; 75% white over black
+      lands near #BFBFBF, about 5:1 against the dark. Lower and there is a photo that
+      defeats it, which would make the middle backdrop no answer at all; higher and it is
+      the solid panel with extra steps, when the point of choosing it is that the
+      wallpaper still shows through.
+    -->
+    <color name="widget_scrim_dark">#A6000000</color>
+    <color name="widget_scrim_light">#BFFFFFFF</color>
 
     <!--
       Stands in for "some wallpaper" behind the editor's preview. A mid tone, so a

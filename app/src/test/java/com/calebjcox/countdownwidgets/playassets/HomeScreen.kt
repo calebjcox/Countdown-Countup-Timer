@@ -9,6 +9,7 @@ import android.util.SizeF
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.RemoteViews
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.data.Timer
 import com.calebjcox.countdownwidgets.testing.VariantSelection
 import com.calebjcox.countdownwidgets.widget.WidgetRenderer
@@ -122,14 +123,13 @@ object HomeScreen {
     /**
      * Composites [timers] onto a wallpaper at [spec]'s widget sizes, largest first.
      *
-     * @param showBackground whether the widgets sit on their own panel or straight on
-     *   the wallpaper — the per-timer "Show widget background" setting.
+     * @param backdrop what the widgets sit on — the per-timer Background setting.
      */
     fun compose(
         context: Context,
         spec: DeviceSpec,
         dark: Boolean,
-        showBackground: Boolean,
+        backdrop: Backdrop,
         timers: List<Timer>,
         nowMillis: Long,
     ): Bitmap {
@@ -149,7 +149,7 @@ object HomeScreen {
         for ((index, size) in sizes.withIndex()) {
             val (widthPx, heightPx) = size
             val (x, y) = places[index]
-            val timer = timers[index % timers.size].copy(showBackground = showBackground)
+            val timer = timers[index % timers.size].copy(backdrop = backdrop)
             val view = widgetView(context, timer, requested[index], index)
             Capture.draw(view, widthPx, heightPx, bitmap, atX = x, atY = y)
         }

@@ -1,7 +1,9 @@
 package com.calebjcox.countdownwidgets.data
 
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
+import com.calebjcox.countdownwidgets.core.RowVisibility
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -29,9 +31,9 @@ class TimerBackupTest {
                 fields = setOf(TimeField.MONTH, TimeField.DAY),
                 labelStyle = LabelStyle.LONG,
                 textTheme = TextTheme.DARK,
-                showBackground = true,
-                showName = false,
-                showTarget = true,
+                backdrop = Backdrop.PANEL,
+                nameVisibility = RowVisibility.NEVER,
+                targetVisibility = RowVisibility.WHEN_ROOM,
                 wrapValue = false,
             ),
             timer(
@@ -41,10 +43,10 @@ class TimerBackupTest {
                 precision = Precision.DATE_TIME,
                 fields = setOf(TimeField.DAY, TimeField.HOUR, TimeField.MINUTE),
                 labelStyle = LabelStyle.SHORT,
-                textTheme = TextTheme.LIGHT,
-                showBackground = false,
-                showName = true,
-                showTarget = false,
+                textTheme = TextTheme.WHITE,
+                backdrop = Backdrop.SCRIM,
+                nameVisibility = RowVisibility.ALWAYS,
+                targetVisibility = RowVisibility.NEVER,
                 wrapValue = true,
             ),
         )
@@ -135,8 +137,43 @@ class TimerBackupTest {
         )
 
         val timer = (decoded as TimerBackup.Result.Ok).timers.single()
-        assertTrue(timer.showName)
-        assertTrue(timer.showTarget)
+        assertEquals(RowVisibility.WHEN_ROOM, timer.nameVisibility)
+        assertEquals(RowVisibility.WHEN_ROOM, timer.targetVisibility)
+        assertEquals(Backdrop.NONE, timer.backdrop)
+    }
+
+    @Test
+    fun `a backup written while the three settings were booleans still says what it meant`() {
+        // WHEN_ROOM rather than ALWAYS for the row that was on, which is the whole of the
+        // migration: `true` never meant "at every size", it meant "wherever it fits", and
+        // reading it as always would print a name onto every 1x1 whose owner never asked
+        // for one. The row that was off has only one thing it can mean.
+        val decoded = TimerBackup.decode(
+            """[{"id":"christmas","name":"Christmas","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],
+               "showName":true,"showTarget":false,"showBackground":true}]""",
+        )
+
+        val timer = (decoded as TimerBackup.Result.Ok).timers.single()
+        assertEquals(RowVisibility.WHEN_ROOM, timer.nameVisibility)
+        assertEquals(RowVisibility.NEVER, timer.targetVisibility)
+        assertEquals(Backdrop.PANEL, timer.backdrop)
+    }
+
+    @Test
+    fun `the enum wins where a file carries both spellings`() {
+        // Only a hand-edited file can be in this state, but it has an answer: the enum is
+        // the one that can express all three values, so it is the one that is read.
+        val decoded = TimerBackup.decode(
+            """[{"id":"christmas","name":"Christmas","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],
+               "showName":false,"nameVisibility":"ALWAYS",
+               "showBackground":true,"backdrop":"SCRIM"}]""",
+        )
+
+        val timer = (decoded as TimerBackup.Result.Ok).timers.single()
+        assertEquals(RowVisibility.ALWAYS, timer.nameVisibility)
+        assertEquals(Backdrop.SCRIM, timer.backdrop)
     }
 
     @Test
@@ -172,9 +209,9 @@ class TimerBackupTest {
         fields: Set<TimeField> = setOf(TimeField.DAY),
         labelStyle: LabelStyle = Timer.DEFAULT_LABEL_STYLE,
         textTheme: TextTheme = Timer.DEFAULT_TEXT_THEME,
-        showBackground: Boolean = Timer.DEFAULT_SHOW_BACKGROUND,
-        showName: Boolean = Timer.DEFAULT_SHOW_NAME,
-        showTarget: Boolean = Timer.DEFAULT_SHOW_TARGET,
+        backdrop: Backdrop = Timer.DEFAULT_BACKDROP,
+        nameVisibility: RowVisibility = Timer.DEFAULT_NAME_VISIBILITY,
+        targetVisibility: RowVisibility = Timer.DEFAULT_TARGET_VISIBILITY,
         wrapValue: Boolean = Timer.DEFAULT_WRAP_VALUE,
     ) = Timer(
         id = id,
@@ -182,9 +219,9 @@ class TimerBackupTest {
         spec = TimerSpec.of(target, precision, fields),
         labelStyle = labelStyle,
         textTheme = textTheme,
-        showBackground = showBackground,
-        showName = showName,
-        showTarget = showTarget,
+        backdrop = backdrop,
+        nameVisibility = nameVisibility,
+        targetVisibility = targetVisibility,
         wrapValue = wrapValue,
     )
 }

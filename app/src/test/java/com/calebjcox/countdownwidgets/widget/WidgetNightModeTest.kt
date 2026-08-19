@@ -7,6 +7,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
@@ -56,7 +57,7 @@ class WidgetNightModeTest {
             precision = Precision.DATE,
             fields = setOf(TimeField.YEAR, TimeField.MONTH, TimeField.DAY),
         ),
-        showBackground = true,
+        backdrop = Backdrop.PANEL,
     )
 
     /** The two tones have to differ, or nothing below could tell them apart. */
@@ -129,7 +130,7 @@ class WidgetNightModeTest {
     @Test
     fun `a widget on the wallpaper keeps the tone it was given`() {
         RuntimeEnvironment.setQualifiers("+notnight")
-        val onWallpaper = timer.copy(showBackground = false, textTheme = TextTheme.LIGHT)
+        val onWallpaper = timer.copy(backdrop = Backdrop.NONE, textTheme = TextTheme.LIGHT)
         val views = build(onWallpaper)
         val expected = ContextCompat.getColor(context, R.color.widget_on_wallpaper_light_primary)
 

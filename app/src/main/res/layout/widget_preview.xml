@@ -8,9 +8,9 @@
   resolves to. A preview drawn at any other density is a promise the dropped widget
   does not keep.
 
-  A background even though timers default to showBackground = false: the picker draws
-  previews on its own surface, not on the wallpaper, so the transparent variant has
-  nothing to stand out against there.
+  A background even though a timer's backdrop defaults to none: the picker draws previews
+  on its own surface, not on the wallpaper, so a transparent one has nothing to stand out
+  against there.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"

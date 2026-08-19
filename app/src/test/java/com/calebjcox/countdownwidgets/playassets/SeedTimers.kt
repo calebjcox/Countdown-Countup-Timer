@@ -1,6 +1,7 @@
 package com.calebjcox.countdownwidgets.playassets
 
 import android.content.Context
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.TextTheme
@@ -122,13 +123,13 @@ object SeedTimers {
         fields: Set<TimeField>,
         labelStyle: LabelStyle = LabelStyle.SHORT,
         textTheme: TextTheme = TextTheme.AUTO,
-        showBackground: Boolean = false,
+        backdrop: Backdrop = Backdrop.NONE,
     ) = Timer(
         id = id,
         name = name,
         spec = TimerSpec.of(target, precision, fields),
         labelStyle = labelStyle,
         textTheme = textTheme,
-        showBackground = showBackground,
+        backdrop = backdrop,
     )
 }

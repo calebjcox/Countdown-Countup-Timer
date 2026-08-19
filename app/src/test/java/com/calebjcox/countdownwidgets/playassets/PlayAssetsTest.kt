@@ -6,6 +6,7 @@ import android.content.Intent
 import android.view.View
 import android.widget.TextView
 import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.data.Timer
 import com.calebjcox.countdownwidgets.ui.EditTimerActivity
 import com.calebjcox.countdownwidgets.ui.MainActivity
@@ -146,11 +147,11 @@ class PlayAssetsTest {
             val timers = onHomeScreen()
             write(
                 spec, dark, 3, "widgets-panel",
-                HomeScreen.compose(context, spec, dark, true, timers, nowMillis),
+                HomeScreen.compose(context, spec, dark, Backdrop.PANEL, timers, nowMillis),
             )
             write(
                 spec, dark, 4, "widgets-wallpaper",
-                HomeScreen.compose(context, spec, dark, false, timers, nowMillis),
+                HomeScreen.compose(context, spec, dark, Backdrop.NONE, timers, nowMillis),
             )
         }
     }

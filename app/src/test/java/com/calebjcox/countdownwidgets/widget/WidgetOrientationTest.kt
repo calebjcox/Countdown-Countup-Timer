@@ -8,6 +8,7 @@ import android.widget.LinearLayout
 import android.widget.RemoteViews
 import android.widget.TextView
 import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.TimeField
@@ -71,7 +72,7 @@ class WidgetOrientationTest {
             fields = setOf(TimeField.DAY),
         ),
         labelStyle = LabelStyle.SHORT,
-        showBackground = true,
+        backdrop = Backdrop.PANEL,
     )
 
     /**

@@ -5,42 +5,50 @@ import android.app.WallpaperColors
 import android.content.Context
 import android.content.res.Configuration
 import androidx.annotation.ColorInt
+import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import com.calebjcox.countdownwidgets.R
+import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TextTone
 import com.calebjcox.countdownwidgets.core.resolveTextTone
 import com.calebjcox.countdownwidgets.data.Timer
 
 /**
- * The two colours a widget draws its text in.
+ * The two colours a widget draws its text in, and the scrim it may draw them on.
  *
- * A widget with its own background is a self-contained card: the panel and the
- * text come from the same light/dark resource pair and always agree. A widget
- * without one is drawing straight onto the wallpaper, and has to make the same
- * decision a launcher makes for its icon labels — which is a question about the
- * *wallpaper*, not about the system theme. Those two signals part company exactly
- * when it matters: a phone in light mode with a dark photo behind the widget.
+ * A widget on its own panel is a self-contained card: the panel and the text come from
+ * the same light/dark resource pair and always agree. Anything short of a panel is drawing
+ * over the wallpaper, and has to make the same decision a launcher makes for its icon
+ * labels — which is a question about the *wallpaper*, not about the system theme. Those
+ * two signals part company exactly when it matters: a phone in light mode with a dark
+ * photo behind the widget.
  *
- * Which is why only the second case is answered here for a real widget. The panel
- * colours below are for views this process draws itself — the editor's preview —
- * where a colour resolved now is a colour drawn now. `WidgetRenderer` leaves the
- * panelled widget's text to its layout instead, because a `RemoteViews` colour
- * outlives the configuration it was resolved in; see the note there.
+ * A scrim does not take the wallpaper out of that question, which is why it is on this
+ * side of the split rather than the panel's. It is translucent by design, so the photo
+ * still shows through it and still has a say in which tone looks right; what it removes is
+ * the photo's ability to make the choice *unreadable*. Hence [scrimFor], which goes the
+ * other way from whatever tone was resolved.
+ *
+ * Which is why only this side is answered here for a real widget. The panel colours below
+ * are for views this process draws itself — the editor's preview — where a colour resolved
+ * now is a colour drawn now. `WidgetRenderer` leaves the panelled widget's text to its
+ * layout instead, because a `RemoteViews` colour outlives the configuration it was
+ * resolved in; see the note there.
  */
 object WidgetPalette {
 
     data class Colors(@ColorInt val primary: Int, @ColorInt val secondary: Int)
 
     fun forTimer(context: Context, timer: Timer): Colors =
-        forAppearance(context, timer.showBackground, timer.textTheme)
+        forAppearance(context, timer.backdrop, timer.textTheme)
 
     /**
      * The same resolution from loose values, so the editor's preview can show what
      * a timer would look like before there is a [Timer] to ask about.
      */
-    fun forAppearance(context: Context, showBackground: Boolean, textTheme: TextTheme): Colors {
-        if (showBackground) {
+    fun forAppearance(context: Context, backdrop: Backdrop, textTheme: TextTheme): Colors {
+        if (backdrop == Backdrop.PANEL) {
             // Sitting on our own panel; the -night resources already pair correctly.
             return Colors(
                 primary = color(context, R.color.widget_text_primary),
@@ -48,13 +56,7 @@ object WidgetPalette {
             )
         }
 
-        val tone = resolveTextTone(
-            theme = textTheme,
-            wallpaperSupportsDarkText = wallpaperSupportsDarkText(context),
-            systemInDarkMode = systemInDarkMode(context),
-        )
-
-        return when (tone) {
+        return when (toneFor(context, textTheme)) {
             TextTone.LIGHT -> Colors(
                 primary = color(context, R.color.widget_on_wallpaper_light_primary),
                 secondary = color(context, R.color.widget_on_wallpaper_light_secondary),
@@ -63,8 +65,54 @@ object WidgetPalette {
                 primary = color(context, R.color.widget_on_wallpaper_dark_primary),
                 secondary = color(context, R.color.widget_on_wallpaper_dark_secondary),
             )
+            TextTone.WHITE -> Colors(
+                primary = color(context, R.color.widget_on_wallpaper_white_primary),
+                secondary = color(context, R.color.widget_on_wallpaper_white_secondary),
+            )
+            TextTone.BLACK -> Colors(
+                primary = color(context, R.color.widget_on_wallpaper_black_primary),
+                secondary = color(context, R.color.widget_on_wallpaper_black_secondary),
+            )
         }
     }
+
+    /**
+     * The scrim to draw behind the text, or null where the backdrop is not one.
+     *
+     * Always the opposite tone from the text, which is the whole of the mechanism: a wash
+     * the same way as the text would move both together and change nothing about whether
+     * one can be read on the other.
+     *
+     * Resolved from the tone rather than from the theme, so the two plain colours pick a
+     * scrim on the same terms as the two tinted ones and `AUTO` picks one from the same
+     * wallpaper hint the text came from.
+     */
+    @DrawableRes
+    fun scrimFor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int? {
+        if (backdrop != Backdrop.SCRIM) return null
+        return if (toneFor(context, textTheme).isLight) {
+            R.drawable.widget_scrim_dark
+        } else {
+            R.drawable.widget_scrim_light
+        }
+    }
+
+    /** The colour of that scrim, for the editor's preview, which blends rather than layers. */
+    @ColorInt
+    fun scrimColor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int? {
+        if (backdrop != Backdrop.SCRIM) return null
+        return if (toneFor(context, textTheme).isLight) {
+            color(context, R.color.widget_scrim_dark)
+        } else {
+            color(context, R.color.widget_scrim_light)
+        }
+    }
+
+    private fun toneFor(context: Context, textTheme: TextTheme): TextTone = resolveTextTone(
+        theme = textTheme,
+        wallpaperSupportsDarkText = wallpaperSupportsDarkText(context),
+        systemInDarkMode = systemInDarkMode(context),
+    )
 
     /**
      * The wallpaper's own opinion on whether dark text reads against it — the same

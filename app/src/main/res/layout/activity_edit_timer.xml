@@ -185,19 +185,91 @@
                 android:text="@string/style_section"
                 android:textAppearance="?attr/textAppearanceTitleSmall" />
 
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/show_name"
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="48dp"
-                android:text="@string/show_name" />
+                android:paddingBottom="8dp"
+                android:text="@string/row_name"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
 
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/show_target"
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/name_visibility_group"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="48dp"
-                android:text="@string/show_target" />
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/name_always"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/row_always" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/name_when_room"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/row_when_room" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/name_never"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/row_never" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="12dp"
+                android:paddingBottom="8dp"
+                android:text="@string/row_target"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/target_visibility_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/target_always"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/row_always" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/target_when_room"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/row_when_room" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/target_never"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/row_never" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="8dp"
+                android:text="@string/rows_hint"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/long_labels"
@@ -225,54 +297,126 @@
                 android:text="@string/wrap_value_hint"
                 android:textAppearance="?attr/textAppearanceBodySmall" />
 
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/show_background"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="48dp"
-                android:text="@string/show_background" />
-
-            <!-- Hidden while the widget has a background of its own; see syncUi. -->
             <TextView
-                android:id="@+id/text_theme_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingTop="8dp"
+                android:paddingTop="12dp"
                 android:paddingBottom="8dp"
-                android:text="@string/text_color"
+                android:text="@string/backdrop"
                 android:textAppearance="?attr/textAppearanceBodyMedium" />
 
             <com.google.android.material.button.MaterialButtonToggleGroup
-                android:id="@+id/text_theme_group"
+                android:id="@+id/backdrop_group"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:selectionRequired="true"
                 app:singleSelection="true">
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/text_theme_auto"
+                    android:id="@+id/backdrop_none"
                     style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:text="@string/backdrop_none" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/backdrop_scrim"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/backdrop_scrim" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/backdrop_panel"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/backdrop_panel" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:text="@string/backdrop_hint"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
+
+            <!--
+              The label, the chips and the hint below are hidden together on a solid
+              panel, where the panel and the text come from one resource pair and a
+              choice would only manufacture unreadable combinations. A tinted backdrop
+              is not that case: it is drawn from whichever colour is picked here, so the
+              choice still means something. See syncUi.
+            -->
+            <TextView
+                android:id="@+id/text_theme_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="4dp"
+                android:paddingBottom="8dp"
+                android:text="@string/text_color"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+            <!--
+              A wrapping ChipGroup rather than one of the toggle groups above, because
+              five weighted buttons across a phone leave no room for a word in any of
+              them. Single selection with one required, so it answers the same way they
+              do — but not through the same listener; see setUpListeners.
+            -->
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/text_theme_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/text_theme_auto"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:text="@string/text_color_auto" />
 
-                <com.google.android.material.button.MaterialButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/text_theme_light"
-                    style="?attr/materialButtonOutlinedStyle"
-                    android:layout_width="0dp"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="@string/text_color_light" />
 
-                <com.google.android.material.button.MaterialButton
+                <com.google.android.material.chip.Chip
                     android:id="@+id/text_theme_dark"
-                    style="?attr/materialButtonOutlinedStyle"
-                    android:layout_width="0dp"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="@string/text_color_dark" />
-            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/text_theme_white"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/text_color_white" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/text_theme_black"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/text_color_black" />
+            </com.google.android.material.chip.ChipGroup>
+
+            <TextView
+                android:id="@+id/text_theme_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:text="@string/text_color_hint"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
 
             <!-- Preview -->
             <TextView
