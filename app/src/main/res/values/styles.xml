@@ -5,6 +5,11 @@
   single-argument remotable methods, and a shadow takes four — so the shadow has
   to be declared in XML rather than chosen at draw time. Everything else about the
   two is identical and lives here, where it cannot drift.
+
+  Which is also why there are two files for three backdrops: the split is the shadow,
+  not the backdrop, and only Backdrop.NONE — the text straight on the wallpaper — has a
+  photo under it to need one. A third file would be a file existing for some other
+  reason, which is the thing this arrangement is meant to rule out.
 -->
 <resources>
 

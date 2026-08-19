@@ -1030,21 +1030,29 @@ object WidgetRenderer {
     }
 
     /**
-     * The two layouts differ only in having a background and a text shadow. They
-     * are separate files rather than one file configured at runtime because
-     * `RemoteViews` dispatches only single-argument remotable methods, and
-     * `setShadowLayer` takes four — so a shadow can only be declared in XML.
+     * The two layouts differ only in the text shadow. They are separate files rather than
+     * one file configured at runtime because `RemoteViews` dispatches only
+     * single-argument remotable methods, and `setShadowLayer` takes four — so a shadow can
+     * only be declared in XML.
      *
-     * Which is why a scrim is not a third file. A background *is* settable at runtime,
-     * and a scrim wants the shadow the wallpaper layout already carries: it holds the
-     * text together where the wash alone is not quite enough, at the edges of a very
-     * bright or very dark photo.
+     * So the question this asks is not "which backdrop" but "is there a photo behind the
+     * text". A shadow is what carries a single colour across a picture that is bright at
+     * one end of a line and dark at the other, and only [Backdrop.NONE] has one of those
+     * behind it. On a panel or a scrim the text sits on a surface this app drew, at a
+     * contrast it chose, and a shadow there is at best redundant — at worst a dark halo
+     * around dark text on a light wash, which is smudging rather than separation.
+     *
+     * Which leaves two files for three backdrops, and a scrim on the panel's layout. That
+     * works because the renderer overrides both things the file declares for a panel, and
+     * overrides them for every scrim there is: the root's background, replaced above with
+     * the scrim drawable, and all four rows' colours, set below. `WidgetScrimTest` pins
+     * both, because neither is visible from the layout that depends on them.
      */
     private fun layoutFor(timer: Timer): Int =
-        if (timer.backdrop == Backdrop.PANEL) {
-            R.layout.widget_timer
-        } else {
+        if (timer.backdrop == Backdrop.NONE) {
             R.layout.widget_timer_wallpaper
+        } else {
+            R.layout.widget_timer
         }
 
     /**

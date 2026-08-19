@@ -2,8 +2,10 @@ package com.calebjcox.countdownwidgets.widget
 
 import android.content.Context
 import android.util.SizeF
+import android.widget.Chronometer
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.TextView
 import com.calebjcox.countdownwidgets.R
 import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.Precision
@@ -15,8 +17,10 @@ import com.calebjcox.countdownwidgets.testing.VariantSelection
 import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -111,6 +115,75 @@ class WidgetScrimTest {
             ),
         )
     }
+
+    @Test
+    fun `nothing with a background of its own draws a text shadow`() {
+        // A shadow separates text from a photo. On a scrim or a panel there is no photo —
+        // the text is on a surface this app drew, at a contrast it chose — and the shadow
+        // stops being separation: under dark text on the light wash it is a dark halo,
+        // which reads as smudging. Both scrim tones, because the wrong one of the two is
+        // exactly what a check of a single tone would miss.
+        val withBackground = listOf(
+            timer.copy(backdrop = Backdrop.SCRIM, textTheme = TextTheme.WHITE),
+            timer.copy(backdrop = Backdrop.SCRIM, textTheme = TextTheme.BLACK),
+            timer.copy(backdrop = Backdrop.SCRIM, textTheme = TextTheme.LIGHT),
+            timer.copy(backdrop = Backdrop.SCRIM, textTheme = TextTheme.DARK),
+            timer.copy(backdrop = Backdrop.PANEL),
+        )
+        for (of in withBackground) {
+            for ((id, row) in rows(root(of))) {
+                assertEquals(
+                    "$id kept a shadow on backdrop=${of.backdrop} text=${of.textTheme}",
+                    0f,
+                    row.shadowRadius,
+                    0f,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `the wallpaper keeps its shadow`() {
+        // The other half of the pair, and the reason the shadow still exists at all: one
+        // photo can be bright at one end of a line of text and dark at the other, so no
+        // single colour survives it unaided.
+        for ((id, row) in rows(root(timer.copy(backdrop = Backdrop.NONE)))) {
+            assertTrue(
+                "$id lost the shadow it needs on a photo",
+                row.shadowRadius > 0f,
+            )
+        }
+    }
+
+    @Test
+    fun `a scrim takes none of the panel's colours`() {
+        // What lets a scrim share the panel's layout. That file declares the panel's
+        // -night pair on every row, and a scrim overrides all four — so this fails the
+        // moment a row stops being recoloured, which is the only way the sharing goes
+        // wrong and is invisible from the layout itself.
+        val of = timer.copy(backdrop = Backdrop.SCRIM, textTheme = TextTheme.WHITE)
+        val expected = WidgetPalette.forAppearance(context, Backdrop.SCRIM, TextTheme.WHITE)
+        val panel = WidgetPalette.forAppearance(context, Backdrop.PANEL, TextTheme.WHITE)
+
+        for ((id, row) in rows(root(of))) {
+            val wanted = if (id == "value" || id == "ticker") expected.primary else expected.secondary
+            assertEquals("$id took the wrong colour", wanted, row.currentTextColor)
+        }
+        // Stated separately so the test above cannot pass by the two happening to agree.
+        assertNotEquals(
+            "the scrim's palette is indistinguishable from the panel's",
+            panel.primary,
+            expected.primary,
+        )
+    }
+
+    /** The four rows that carry text, by the name their assertion messages use. */
+    private fun rows(root: LinearLayout): List<Pair<String, TextView>> = listOf(
+        "name" to root.findViewById(R.id.widget_name),
+        "value" to root.findViewById(R.id.widget_value),
+        "ticker" to root.findViewById<Chronometer>(R.id.widget_ticker),
+        "footer" to root.findViewById(R.id.widget_footer),
+    )
 
     /** The drawable resource behind the widget's root, or null where it has no background. */
     private fun scrimOf(of: Timer): Int? =

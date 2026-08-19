@@ -3,6 +3,12 @@
   The widget drawn straight onto the wallpaper: no background, and a shadow behind
   every line so the text survives a busy photo.
 
+  The shadow is the whole reason this is a second file — RemoteViews cannot call
+  setShadowLayer — and so Backdrop.NONE is the only thing that reaches it. A photo can
+  be bright at one end of a line of text and dark at the other, which no single colour
+  survives on its own; the other two backdrops put a surface of this app's own under the
+  text instead and want no shadow at all.
+
   Identical to widget_timer.xml in structure and view ids, so WidgetRenderer stays
   one code path and only swaps the layout resource. The colours here are
   placeholders — WidgetPalette resolves the real ones at draw time from the
