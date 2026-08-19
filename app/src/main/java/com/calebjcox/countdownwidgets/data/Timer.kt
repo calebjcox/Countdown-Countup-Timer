@@ -22,7 +22,13 @@ data class Timer(
     val name: String,
     val spec: TimerSpec,
     val labelStyle: LabelStyle = DEFAULT_LABEL_STYLE,
-    /** Ignored on [Backdrop.PANEL], where the panel and the text are a pair; see WidgetPalette. */
+    /**
+     * Read on every backdrop, and on the two that draw a surface it also decides which
+     * surface: that surface goes the opposite way from the text, so a named colour picks
+     * the panel or the wash it can be read on. Only [TextTheme.AUTO] is answered
+     * differently per backdrop, and there the difference is who resolves it rather than
+     * whether this is consulted. See WidgetPalette.
+     */
     val textTheme: TextTheme = DEFAULT_TEXT_THEME,
     val backdrop: Backdrop = DEFAULT_BACKDROP,
     /**

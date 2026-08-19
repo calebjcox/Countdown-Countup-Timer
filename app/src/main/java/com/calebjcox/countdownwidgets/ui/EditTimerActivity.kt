@@ -342,12 +342,6 @@ class EditTimerActivity : AppCompatActivity() {
         binding.clockUnits.visibility = if (showTime) View.VISIBLE else View.GONE
         binding.time.visibility = if (showTime) View.VISIBLE else View.GONE
 
-        // Shown on every backdrop. A named colour used to be offered only off a panel,
-        // on the grounds that it could only manufacture unreadable combinations there —
-        // which stopped being true once the surface started following the tone instead
-        // of the other way round. Black text makes the panel light; there is nothing
-        // left to strand it on. See WidgetPalette.
-
         binding.date.text = targetDate.format(dateFormatter)
         binding.time.text = targetTime.format(timeFormatter)
 

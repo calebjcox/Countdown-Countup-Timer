@@ -346,14 +346,12 @@
                 android:textAppearance="?attr/textAppearanceBodySmall" />
 
             <!--
-              The label, the chips and the hint below are hidden together on a solid
-              panel, where the panel and the text come from one resource pair and a
-              choice would only manufacture unreadable combinations. A tinted backdrop
-              is not that case: it is drawn from whichever colour is picked here, so the
-              choice still means something. See syncUi.
+              Offered on every background, including the solid one. The surface goes the
+              opposite way from whichever colour is picked here — Black makes the panel
+              light — so there is no backdrop a choice here can be stranded on, and none
+              that has to hide it. See WidgetPalette.
             -->
             <TextView
-                android:id="@+id/text_theme_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingTop="4dp"
@@ -411,7 +409,6 @@
             </com.google.android.material.chip.ChipGroup>
 
             <TextView
-                android:id="@+id/text_theme_hint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingTop="8dp"

@@ -103,14 +103,6 @@ class EditTimerAppearanceTest {
             .check(R.id.target_always)
         activity.findViewById<ChipGroup>(R.id.text_theme_group).check(R.id.text_theme_white)
 
-        // The text colour control stays offered on a solid panel: the panel follows the
-        // tone, so a named colour cannot strand the text there.
-        assertEquals(
-            "text theme label on a panel",
-            View.VISIBLE,
-            activity.findViewById<View>(R.id.text_theme_label).visibility,
-        )
-
         activity.findViewById<View>(R.id.save).performClick()
 
         val stored = TimerStore(RuntimeEnvironment.getApplication()).timer("christmas")!!

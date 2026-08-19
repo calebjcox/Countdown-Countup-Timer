@@ -468,10 +468,14 @@ object WidgetRenderer {
         // the rows that will actually be drawn, and the value grows into the room a
         // dropped row leaves rather than centring on a gap.
         //
-        // ALWAYS can ask for more rows than the variant was sized for. It is allowed to:
-        // the value keeps its own floor either way, and the root lays the rows out in
-        // reading order, so a cell too small for what was asked loses the bottom of the
-        // last row rather than any of the number.
+        // ALWAYS can ask for more rows than the cell has room for, and at the smallest
+        // box it does: two labels at their floor plus a floored value row want more than
+        // the 28dp a 40x40 content box leaves inside the compact padding. The root
+        // centres its children, so `LinearLayout` splits that overrun rather than shedding
+        // it from the end — the first child is placed at a negative top and the last runs
+        // past the bottom. Every row loses a little, the value included. Nothing here
+        // prevents it, and nothing should: the row was asked for at every size, and it is
+        // only below the sizes a widget is dropped at that the cell cannot pay.
         val showName = timer.nameVisibility.shows(detail != Detail.VALUE) &&
             timer.name.isNotBlank()
         val showFooter = timer.targetVisibility.shows(detail == Detail.EVERYTHING)
