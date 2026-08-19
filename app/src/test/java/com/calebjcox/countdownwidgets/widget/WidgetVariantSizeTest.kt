@@ -17,6 +17,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -172,6 +173,28 @@ class WidgetVariantSizeTest {
     }
 
     @Test
+    fun `a cell narrower than its own padding is drawn rather than thrown`() {
+        // A reported cell under 2 x widget_padding_compact leaves a negative content box,
+        // and `StaticLayout` throws on a negative width instead of degrading — so this is
+        // the difference between a widget drawn uselessly small and an update that takes
+        // the widget down. Nothing upstream filters it: variantsFor and sizingFor drop
+        // cells that are not positive, and 6dp is positive.
+        //
+        // 12dp is the boundary and is included on purpose: it leaves a box of exactly
+        // zero, which `StaticLayout` accepts, so it is the case a guard written as `< 0`
+        // would let through into a search that can never fit anything.
+        for (width in listOf(12f, 11f, 6f, 1f)) {
+            // The unconfigured prompt as well: it measures against tightest(cells) and
+            // reaches the same search, so it is reachable by the same cell.
+            for (of in listOf(timer, null)) {
+                val what = "a ${width}dp cell" + if (of == null) " with no timer" else ""
+                runCatching { build(of, listOf(SizeF(width, 40f))) }
+                    .onFailure { fail("$what threw ${it::class.simpleName}: ${it.message}") }
+            }
+        }
+    }
+
+    @Test
     fun `a cell below every breakpoint falls back to the smallest variant`() {
         // Not reachable through minWidth/minHeight, but findBestFitLayout has a
         // documented answer for it and it should be the least demanding variant rather
@@ -280,7 +303,7 @@ class WidgetVariantSizeTest {
         }
     }
 
-    private fun build(timer: Timer, cells: List<SizeF> = emptyList()): RemoteViews =
+    private fun build(timer: Timer?, cells: List<SizeF> = emptyList()): RemoteViews =
         WidgetRenderer.build(
             context = context,
             appWidgetId = 1,

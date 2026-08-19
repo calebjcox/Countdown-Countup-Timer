@@ -651,10 +651,15 @@ object WidgetRenderer {
         fun reserved(valueSize: Float): Int =
             labelCount * lineHeightPx(maxOf(floor, valueSize * LABEL_SHARE))
 
-        // No text to measure. Nothing below has an answer for that, and neither does a
-        // widget: hand back a row at the floor and let a caller with something to draw
-        // ask again.
-        if (text.value.isEmpty()) {
+        // Nothing to measure, or nothing to measure it in. Both want the same answer — a
+        // row at the floor, and a caller with something to draw can ask again — but only
+        // the first is about the text. The second is the box: a host reporting a cell
+        // narrower than the padding it will be drawn with leaves a *negative* width, and
+        // `StaticLayout` throws on one rather than degrading, so an update for a cell like
+        // that would take down the widget instead of drawing it small. Nothing upstream
+        // catches it: `variantsFor` and `sizingFor` only drop cells that are not positive,
+        // which a 6dp one is. See WidgetVariantSizeTest.
+        if (text.value.isEmpty() || widthPx <= 0) {
             val height = (availablePx - labelCount * lineHeightPx(floor))
                 .coerceIn(lineHeightPx(smallest, bold = true), lineHeightPx(largest, bold = true))
             return Metrics(height, 1, smallest, floor)
