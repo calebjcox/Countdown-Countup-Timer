@@ -93,3 +93,51 @@ val TextTheme.chosenTone: TextTone?
         TextTheme.WHITE -> TextTone.WHITE
         TextTheme.BLACK -> TextTone.BLACK
     }
+
+/**
+ * How strong a [Backdrop.SCRIM] wash is, as a percentage of solid.
+ *
+ * The dial only the middle backdrop has, because it is the only one with anything to
+ * trade: [Backdrop.NONE] has no wash to strengthen and [Backdrop.PANEL] is already at
+ * [MAX]. What moving it trades is the two things a wash sits between — how much of the
+ * wallpaper still reads through, against how much contrast the text gets.
+ *
+ * Every value that reaches a widget goes through [snap], wherever it came from. The
+ * slider snaps itself, so this is for the other door: a hand-edited backup, or a file
+ * written by a version whose step was finer than this one's.
+ */
+object ScrimStrength {
+
+    /** Solid — which is [Backdrop.PANEL], reached from the other end. */
+    const val MAX = 100
+
+    /**
+     * Nearly nothing, and deliberately not zero. A wash at zero is [Backdrop.NONE] under
+     * the middle backdrop's name, and not even a good one: the layout that carries the
+     * text shadow is chosen by the backdrop rather than by the strength, so the text
+     * would be on the bare photo with the one thing that makes that survivable switched
+     * off. See WidgetRenderer.layoutFor.
+     */
+    const val MIN = 10
+
+    /** Fine enough to tune with, coarse enough that a drag lands somewhere repeatable. */
+    const val STEP = 5
+
+    /**
+     * Where the slider starts, and a floor worth knowing about rather than a look.
+     *
+     * A wash only has to hold up against the wallpaper that fights it — a white one under
+     * the dark wash, a black one under the light — so that is what this is set against.
+     * 75% white over black lands near #BFBFBF, about 5:1 against the dark text; 75% black
+     * over white lands near #404040, further still from the light.
+     *
+     * One number covers both tones, so it has to be the higher of the two they would each
+     * settle on alone: the dark wash clears its text by 65%, and defaulting there would
+     * leave the light one short of a contrast it needs.
+     */
+    const val DEFAULT = 75
+
+    /** The nearest value the dial can actually stop on, and never outside its ends. */
+    fun snap(percent: Int): Int =
+        (percent.coerceIn(MIN, MAX) + STEP / 2) / STEP * STEP
+}

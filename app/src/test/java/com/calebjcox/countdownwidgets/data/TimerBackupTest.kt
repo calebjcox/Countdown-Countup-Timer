@@ -4,6 +4,7 @@ import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.RowVisibility
+import com.calebjcox.countdownwidgets.core.ScrimStrength
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -32,6 +33,7 @@ class TimerBackupTest {
                 labelStyle = LabelStyle.LONG,
                 textTheme = TextTheme.DARK,
                 backdrop = Backdrop.PANEL,
+                scrimStrength = ScrimStrength.MIN,
                 nameVisibility = RowVisibility.NEVER,
                 targetVisibility = RowVisibility.WHEN_ROOM,
                 wrapValue = false,
@@ -45,6 +47,7 @@ class TimerBackupTest {
                 labelStyle = LabelStyle.SHORT,
                 textTheme = TextTheme.WHITE,
                 backdrop = Backdrop.SCRIM,
+                scrimStrength = 40,
                 nameVisibility = RowVisibility.ALWAYS,
                 targetVisibility = RowVisibility.NEVER,
                 wrapValue = true,
@@ -177,6 +180,41 @@ class TimerBackupTest {
     }
 
     @Test
+    fun `a backup made before the tint had a strength gets the one it was drawn at`() {
+        // The same rule the row toggles are read under: absent has to mean what the widget
+        // was already doing. Every scrim ever exported was drawn at the default, so that
+        // is what a file with no strength in it describes.
+        val decoded = TimerBackup.decode(
+            """[{"id":"christmas","name":"Christmas","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM"}]""",
+        )
+
+        val timer = (decoded as TimerBackup.Result.Ok).timers.single()
+        assertEquals(ScrimStrength.DEFAULT, timer.scrimStrength)
+    }
+
+    @Test
+    fun `a strength the dial cannot stop on is read as the nearest one it can`() {
+        // The one setting that is a number, so the one whose stored value can be wrong
+        // rather than merely unrecognised: an enum nobody can spell falls back to a
+        // default, and 4000 would otherwise be handed to the widget as written.
+        val decoded = TimerBackup.decode(
+            """[{"id":"low","name":"Low","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM","scrimStrength":-5},
+              {"id":"odd","name":"Odd","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM","scrimStrength":43},
+              {"id":"high","name":"High","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM","scrimStrength":4000}]""",
+        )
+
+        val timers = (decoded as TimerBackup.Result.Ok).timers
+        assertEquals(
+            listOf(ScrimStrength.MIN, 45, ScrimStrength.MAX),
+            timers.map { it.scrimStrength },
+        )
+    }
+
+    @Test
     fun `a backup made before wrapping existed is allowed to wrap`() {
         // The opposite of what the test above wants, and the pair is the point. A missing
         // row toggle has to mean "as it was" or an old file would delete a row someone
@@ -210,6 +248,7 @@ class TimerBackupTest {
         labelStyle: LabelStyle = Timer.DEFAULT_LABEL_STYLE,
         textTheme: TextTheme = Timer.DEFAULT_TEXT_THEME,
         backdrop: Backdrop = Timer.DEFAULT_BACKDROP,
+        scrimStrength: Int = Timer.DEFAULT_SCRIM_STRENGTH,
         nameVisibility: RowVisibility = Timer.DEFAULT_NAME_VISIBILITY,
         targetVisibility: RowVisibility = Timer.DEFAULT_TARGET_VISIBILITY,
         wrapValue: Boolean = Timer.DEFAULT_WRAP_VALUE,
@@ -220,6 +259,7 @@ class TimerBackupTest {
         labelStyle = labelStyle,
         textTheme = textTheme,
         backdrop = backdrop,
+        scrimStrength = scrimStrength,
         nameVisibility = nameVisibility,
         targetVisibility = targetVisibility,
         wrapValue = wrapValue,
