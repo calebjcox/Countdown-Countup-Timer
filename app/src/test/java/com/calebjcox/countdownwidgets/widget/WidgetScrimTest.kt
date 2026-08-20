@@ -1,6 +1,7 @@
 package com.calebjcox.countdownwidgets.widget
 
 import android.content.Context
+import android.graphics.Color
 import android.util.SizeF
 import android.widget.Chronometer
 import android.widget.FrameLayout
@@ -9,6 +10,7 @@ import android.widget.TextView
 import com.calebjcox.countdownwidgets.R
 import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.Precision
+import com.calebjcox.countdownwidgets.core.ScrimStrength
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -41,9 +43,14 @@ import org.robolectric.RuntimeEnvironment
  * what these check rather than that a background exists.
  *
  * The direction is the part a refactor can silently invert: both colours are drawn from
- * the same resolved tone, so a single flipped condition in [WidgetPalette.scrimFor] gives
- * light text on a light wash, which looks deliberate in the editor and is illegible on a
- * home screen.
+ * the same resolved tone, so a single flipped condition in [WidgetPalette.scrimTintFor]
+ * gives light text on a light wash, which looks deliberate in the editor and is illegible
+ * on a home screen.
+ *
+ * How much of the wash is drawn is the timer's, and is checked apart from which wash it
+ * is. The two are one colour by the time the widget has it — a hue at an alpha — and a
+ * test that read them together could pass on a wash going the right way at a strength
+ * nobody asked for.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -72,22 +79,69 @@ class WidgetScrimTest {
         // follows the tone rather than the tone having to survive the surface, so choosing
         // Black is also what makes the card light and there is nothing left to strand the
         // text on. Both backdrops, because one rule covering both is the claim.
-        val expected = mapOf(
-            (Backdrop.SCRIM to TextTheme.LIGHT) to R.drawable.widget_scrim_dark,
-            (Backdrop.SCRIM to TextTheme.WHITE) to R.drawable.widget_scrim_dark,
-            (Backdrop.SCRIM to TextTheme.DARK) to R.drawable.widget_scrim_light,
-            (Backdrop.SCRIM to TextTheme.BLACK) to R.drawable.widget_scrim_light,
-            (Backdrop.PANEL to TextTheme.LIGHT) to R.drawable.widget_panel_dark,
-            (Backdrop.PANEL to TextTheme.WHITE) to R.drawable.widget_panel_dark,
-            (Backdrop.PANEL to TextTheme.DARK) to R.drawable.widget_panel_light,
-            (Backdrop.PANEL to TextTheme.BLACK) to R.drawable.widget_panel_light,
+        //
+        // A panel names its surface with a drawable and a scrim with a tint, so the two
+        // are read differently and mean the same thing: which of the two colours this app
+        // keeps for the purpose ended up behind the text.
+        val panels = mapOf(
+            TextTheme.LIGHT to R.drawable.widget_panel_dark,
+            TextTheme.WHITE to R.drawable.widget_panel_dark,
+            TextTheme.DARK to R.drawable.widget_panel_light,
+            TextTheme.BLACK to R.drawable.widget_panel_light,
         )
-        for ((appearance, surface) in expected) {
-            val (backdrop, theme) = appearance
+        for ((theme, panel) in panels) {
             assertEquals(
-                "$theme text on $backdrop got a surface the same way as itself",
-                surface,
-                scrimOf(timer.copy(backdrop = backdrop, textTheme = theme)),
+                "$theme text on a panel got a surface the same way as itself",
+                panel,
+                backgroundOf(timer.copy(backdrop = Backdrop.PANEL, textTheme = theme)),
+            )
+        }
+
+        val washes = mapOf(
+            TextTheme.LIGHT to R.color.widget_scrim_dark,
+            TextTheme.WHITE to R.color.widget_scrim_dark,
+            TextTheme.DARK to R.color.widget_scrim_light,
+            TextTheme.BLACK to R.color.widget_scrim_light,
+        )
+        for ((theme, hue) in washes) {
+            assertEquals(
+                "$theme text on a scrim got a wash the same way as itself",
+                ContextCompat.getColor(context, hue),
+                hueOf(washOf(timer.copy(backdrop = Backdrop.SCRIM, textTheme = theme))!!),
+            )
+        }
+    }
+
+    @Test
+    fun `the strength dial moves the wash's alpha and nothing else`() {
+        // What the dial is allowed to be: how much of one of two fixed hues is drawn. A
+        // strength that reached the hue would be a second way to choose the tone, running
+        // against the tone the text already chose.
+        val strengths = listOf(ScrimStrength.MIN, 40, ScrimStrength.DEFAULT, ScrimStrength.MAX)
+        val washes = strengths.map { strength ->
+            washOf(
+                timer.copy(
+                    backdrop = Backdrop.SCRIM,
+                    textTheme = TextTheme.WHITE,
+                    scrimStrength = strength,
+                ),
+            )!!
+        }
+
+        assertEquals(
+            "the strength changed which wash it was, not how much of it",
+            listOf(ContextCompat.getColor(context, R.color.widget_scrim_dark)),
+            washes.map(::hueOf).distinct(),
+        )
+        assertEquals(
+            "a wash at full strength is not solid, which is what full strength means",
+            255,
+            Color.alpha(washes.last()),
+        )
+        for ((weaker, stronger) in washes.zipWithNext()) {
+            assertTrue(
+                "a higher strength did not draw more of the wash",
+                Color.alpha(stronger) > Color.alpha(weaker),
             )
         }
     }
@@ -95,12 +149,20 @@ class WidgetScrimTest {
     @Test
     fun `the other two backdrops draw no scrim`() {
         // NONE is the wallpaper showing through, and PANEL brings its own background from
-        // the layout — neither is a case a scrim has anything to add to.
-        assertNull(scrimOf(timer.copy(backdrop = Backdrop.NONE)))
+        // the layout — neither is a case a scrim has anything to add to. The tint is the
+        // half of that a strength could leak through: a panel tinted at 10% is a panel
+        // nobody can read.
+        assertNull(root(timer.copy(backdrop = Backdrop.NONE)).background)
         assertNotNull(
             "the panel lost the background its layout declares",
             root(timer.copy(backdrop = Backdrop.PANEL)).background,
         )
+        for (backdrop in listOf(Backdrop.NONE, Backdrop.PANEL)) {
+            assertNull(
+                "$backdrop was tinted by a strength that is not its business",
+                washOf(timer.copy(backdrop = backdrop, scrimStrength = ScrimStrength.MIN)),
+            )
+        }
     }
 
     @Test
@@ -197,8 +259,18 @@ class WidgetScrimTest {
     )
 
     /** The drawable resource behind the widget's root, or null where it has no background. */
-    private fun scrimOf(of: Timer): Int? =
+    private fun backgroundOf(of: Timer): Int? =
         root(of).background?.let { shadowOf(it).createdFromResId }
+
+    /**
+     * The colour that background is tinted, or null where nothing tints it. On a scrim
+     * this is the wash entire: the shape under it is one file, opaque, for every scrim
+     * there is.
+     */
+    private fun washOf(of: Timer): Int? = root(of).backgroundTintList?.defaultColor
+
+    /** A colour with its alpha put back to solid, so two strengths of one hue compare equal. */
+    private fun hueOf(color: Int): Int = color or Color.BLACK
 
     private fun root(of: Timer): LinearLayout {
         val views = WidgetRenderer.build(

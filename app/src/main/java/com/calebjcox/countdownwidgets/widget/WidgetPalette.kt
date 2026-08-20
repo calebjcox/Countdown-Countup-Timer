@@ -8,8 +8,10 @@ import androidx.annotation.ColorInt
 import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.calebjcox.countdownwidgets.R
 import com.calebjcox.countdownwidgets.core.Backdrop
+import com.calebjcox.countdownwidgets.core.ScrimStrength
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TextTone
 import com.calebjcox.countdownwidgets.core.chosenTone
@@ -42,7 +44,9 @@ import com.calebjcox.countdownwidgets.data.Timer
  * is resolved from the same resources at every inflate. Freeze one and not the other and
  * a phone switched to dark mode shows the old tone on the new surface until something
  * redraws the widget, which for a day-precision timer is the next midnight. So Auto is
- * handed over as a resource id and the launcher resolves both together.
+ * handed over unresolved and the launcher resolves it at the moment it draws — as a
+ * resource id where a resource can say the whole thing, and as a day/night pair of colours
+ * where it cannot. See [ScrimTint], which is the one that cannot.
  */
 object WidgetPalette {
 
@@ -61,6 +65,24 @@ object WidgetPalette {
 
         data class Themed(@ColorRes val primary: Int, @ColorRes val secondary: Int) : TextColors
     }
+
+    /**
+     * The colour the scrim shape is tinted, in each of the two configurations the host
+     * may draw it in.
+     *
+     * A pair rather than a colour for the reason [TextColors.Themed] is resource ids, and
+     * it has to be one for the same widgets: Auto's wash follows the system theme, the
+     * text on it follows the theme too, and the two have to move together. What forces
+     * the pair rather than another qualified resource is the strength — a number chosen
+     * per timer, which no qualifier can carry — so the wash is the one colour here that
+     * cannot be left whole for the launcher to resolve. `RemoteViews.setColorStateList`
+     * takes both and picks at the moment it draws, which is the same promise a qualified
+     * resource makes.
+     *
+     * A named tone gives the same colour twice. That is not a special case worth avoiding:
+     * it is what "this tone in every configuration" means, spelled out.
+     */
+    data class ScrimTint(@ColorInt val notNight: Int, @ColorInt val night: Int)
 
     /** What `setBackgroundResource` takes to mean "none": see [backgroundFor]. */
     const val NO_BACKGROUND = 0
@@ -126,29 +148,48 @@ object WidgetPalette {
      * — the host reuses the view whenever the layout id matches — so "none" has to be a
      * value this can return rather than a reason not to ask.
      *
-     * Always a resource id rather than a colour, which is what lets the two Auto entries
-     * be qualified drawables and follow the theme on their own.
+     * Always a resource id rather than a colour, which is what lets the panel's Auto entry
+     * be a qualified drawable and follow the theme on its own. A scrim cannot be one, and
+     * says so at the line that returns it.
      */
     @DrawableRes
     fun backgroundFor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int {
         if (backdrop == Backdrop.NONE) return NO_BACKGROUND
+        // One shape for every scrim, because a scrim's colour is not in its shape: it is
+        // the tint beside it, which is the only thing that can carry a strength. See
+        // [scrimTintFor], which the caller has to set whenever it sets this.
+        if (backdrop == Backdrop.SCRIM) return R.drawable.widget_scrim
+        val named = textTheme.chosenTone ?: return R.drawable.widget_background
+        return if (named.isLight) R.drawable.widget_panel_dark else R.drawable.widget_panel_light
+    }
+
+    /**
+     * What to tint that shape, or null on a backdrop that draws no scrim.
+     *
+     * The direction is the rule at the top of this file: the wash goes the opposite way
+     * from the text, so light text gets the dark hue. Auto has no tone to ask, so the
+     * theme answers instead — a light wash by day under the dark text the -night pair
+     * gives it, a dark wash by night — and the two halves are handed over together.
+     *
+     * Null is a value the caller has to be able to set, not a reason to skip the call:
+     * a tint left behind on a panel is a panel drawn in the last timer's wash. See
+     * WidgetRenderer.render and WidgetSurfaceTest.
+     */
+    fun scrimTintFor(
+        context: Context,
+        backdrop: Backdrop,
+        textTheme: TextTheme,
+        scrimStrength: Int,
+    ): ScrimTint? {
+        if (backdrop != Backdrop.SCRIM) return null
         val named = textTheme.chosenTone
-            ?: return when (backdrop) {
-                Backdrop.SCRIM -> R.drawable.widget_scrim_auto
-                else -> R.drawable.widget_background
-            }
-        return when (backdrop) {
-            Backdrop.SCRIM -> if (named.isLight) {
-                R.drawable.widget_scrim_dark
-            } else {
-                R.drawable.widget_scrim_light
-            }
-            else -> if (named.isLight) {
-                R.drawable.widget_panel_dark
-            } else {
-                R.drawable.widget_panel_light
-            }
-        }
+            ?: return ScrimTint(
+                notNight = wash(context, R.color.widget_scrim_light, scrimStrength),
+                night = wash(context, R.color.widget_scrim_dark, scrimStrength),
+            )
+        val hue = if (named.isLight) R.color.widget_scrim_dark else R.color.widget_scrim_light
+        val fixed = wash(context, hue, scrimStrength)
+        return ScrimTint(notNight = fixed, night = fixed)
     }
 
     /**
@@ -159,25 +200,43 @@ object WidgetPalette {
      * case for: compositing an opaque colour over the stand-in gives the colour back.
      */
     @ColorInt
-    fun surfaceColorFor(context: Context, backdrop: Backdrop, textTheme: TextTheme): Int? {
-        val background = backgroundFor(context, backdrop, textTheme)
-        if (background == NO_BACKGROUND) return null
-        return color(context, surfaceColorRes(backdrop, textTheme))
+    fun surfaceColorFor(
+        context: Context,
+        backdrop: Backdrop,
+        textTheme: TextTheme,
+        scrimStrength: Int,
+    ): Int? {
+        // The preview is redrawn on a configuration change, so the half of the pair this
+        // configuration calls for is the half that is on screen — the choice the launcher
+        // makes per draw, made once here because here there is only one draw to make it
+        // for.
+        scrimTintFor(context, backdrop, textTheme, scrimStrength)?.let { tint ->
+            return if (systemInDarkMode(context)) tint.night else tint.notNight
+        }
+        if (backdrop == Backdrop.NONE) return null
+        return color(context, panelColorRes(textTheme))
     }
 
-    /** The colour each background drawable is filled with; see [surfaceColorFor]. */
+    /** The colour the panel's drawable is filled with; see [surfaceColorFor]. */
     @ColorRes
-    private fun surfaceColorRes(backdrop: Backdrop, textTheme: TextTheme): Int {
-        val named = textTheme.chosenTone
-            ?: return when (backdrop) {
-                Backdrop.SCRIM -> R.color.widget_scrim_auto
-                else -> R.color.widget_background
-            }
-        return when (backdrop) {
-            Backdrop.SCRIM -> if (named.isLight) R.color.widget_scrim_dark else R.color.widget_scrim_light
-            else -> if (named.isLight) R.color.widget_panel_dark else R.color.widget_panel_light
-        }
+    private fun panelColorRes(textTheme: TextTheme): Int {
+        val named = textTheme.chosenTone ?: return R.color.widget_background
+        return if (named.isLight) R.color.widget_panel_dark else R.color.widget_panel_light
     }
+
+    /**
+     * One of the two hues at the strength a timer asked for.
+     *
+     * The hues are opaque, so the alpha is entirely the strength's — which is what makes
+     * the dial mean what it says, and why nothing may put an alpha back into the
+     * resources. See colors.xml.
+     */
+    @ColorInt
+    private fun wash(context: Context, @ColorRes hue: Int, scrimStrength: Int): Int =
+        ColorUtils.setAlphaComponent(
+            color(context, hue),
+            Math.round(ScrimStrength.snap(scrimStrength) * 255f / ScrimStrength.MAX),
+        )
 
     /** What each tone is drawn in. The same four pairs on every backdrop. */
     private fun pairFor(context: Context, tone: TextTone): Colors = when (tone) {

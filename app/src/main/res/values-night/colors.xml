@@ -4,8 +4,7 @@
     <color name="widget_text_primary">@android:color/system_accent1_200</color>
     <color name="widget_text_secondary">@android:color/system_neutral2_200</color>
 
-    <!-- A dark scrim in dark mode, so the text on it is the light tone. -->
-    <color name="widget_scrim_auto">@color/widget_scrim_dark</color>
+    <!-- The text on a dark-mode scrim, which is a dark one, so its text is the light tone. -->
     <color name="widget_on_scrim_primary">@color/widget_tone_light_primary</color>
     <color name="widget_on_scrim_secondary">@color/widget_tone_light_secondary</color>
 </resources>
