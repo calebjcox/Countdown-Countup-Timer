@@ -54,10 +54,10 @@
     <string name="backdrop_panel">Solid</string>
     <string name="backdrop_hint">Tinted washes the wallpaper behind the text instead of covering it, so the text reads whatever the wallpaper is doing.</string>
     <string name="scrim_strength">Tint strength</string>
-    <!-- The heading over the slider, carrying the value it is on, e.g. "Tint strength: 75%". -->
+    <!-- The heading over the slider, carrying the value it is on, e.g. "Tint strength: 70%". -->
     <string name="scrim_strength_label">Tint strength: %1$d%%</string>
-    <string name="scrim_strength_hint">How much of the wallpaper the wash covers. Lower lets more of the photo through; the slider starts where the text still clears a readable contrast against the wallpaper that fights it hardest.</string>
-    <!-- The slider's own bubble, shown while it is being dragged, e.g. "75%". -->
+    <string name="scrim_strength_hint">How much of the wallpaper the wash covers. Lower lets more of the photo through; higher gives the text more to sit on. It stops short of covering the wallpaper entirely, because that is what Solid above already does.</string>
+    <!-- The slider's own bubble, shown while it is being dragged, e.g. "70%". -->
     <string name="scrim_strength_value">%1$d%%</string>
     <string name="text_color">Text color</string>
     <string name="text_color_auto">Auto</string>

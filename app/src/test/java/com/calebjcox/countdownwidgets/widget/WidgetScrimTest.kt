@@ -118,6 +118,7 @@ class WidgetScrimTest {
         // strength that reached the hue would be a second way to choose the tone, running
         // against the tone the text already chose.
         val strengths = listOf(ScrimStrength.MIN, 40, ScrimStrength.DEFAULT, ScrimStrength.MAX)
+        val solid = 255
         val washes = strengths.map { strength ->
             washOf(
                 timer.copy(
@@ -133,10 +134,13 @@ class WidgetScrimTest {
             listOf(ContextCompat.getColor(context, R.color.widget_scrim_dark)),
             washes.map(::hueOf).distinct(),
         )
-        assertEquals(
-            "a wash at full strength is not solid, which is what full strength means",
-            255,
-            Color.alpha(washes.last()),
+        assertTrue(
+            "the top of the dial draws a solid wash, which is the backdrop beside it",
+            Color.alpha(washes.last()) < solid,
+        )
+        assertTrue(
+            "the top of the dial is not most of the way to solid either",
+            Color.alpha(washes.last()) > solid * 9 / 10,
         )
         for ((weaker, stronger) in washes.zipWithNext()) {
             assertTrue(

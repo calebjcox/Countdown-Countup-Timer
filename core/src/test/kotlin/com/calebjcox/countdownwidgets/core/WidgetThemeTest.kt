@@ -112,4 +112,15 @@ class WidgetThemeTest {
             assertEquals(fixed, ScrimStrength.snap(fixed))
         }
     }
+
+    @Test
+    fun `the dial stops short of solid, which is the backdrop next to it`() {
+        // A Tinted widget at full strength and a Solid one are the same widget, and the
+        // control the user is looking at cannot get them back out of it. So the top of
+        // the range is below solid, and by a whole step — half of one would round back up
+        // through snap and hand the state back.
+        assertTrue(ScrimStrength.MAX < ScrimStrength.SOLID)
+        assertEquals(ScrimStrength.SOLID - ScrimStrength.STEP, ScrimStrength.MAX)
+        assertEquals(ScrimStrength.MAX, ScrimStrength.snap(ScrimStrength.SOLID))
+    }
 }

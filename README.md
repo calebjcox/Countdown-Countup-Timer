@@ -221,11 +221,17 @@ contrast a property of the widget instead of a bet about the photo.
 
 **Tint strength** is how much of the wash is drawn, in steps of 5% — the one setting
 that is a dial rather than a choice, because it is the one trade only the person
-looking at their own wallpaper can make: more of the photo, or more contrast. It
-starts at 75%, which is the worst case rather than a look — a white wallpaper under
-the dark wash, a black one under the light — so the setting it arrives at is the one
-no photo defeats, and everything below that is the wallpaper being let back in on
-purpose.
+looking at their own wallpaper can make: more of the photo, or more contrast.
+
+It starts at 70%, between what the two tones would each ask for on their own: the
+dark wash clears its light text at 65% over a white wallpaper, the light one wants
+75% over a black one. The dial is there for anyone whose photo is the one that
+fights hardest.
+
+It stops at 95%, one step short of solid, and that is the point rather than a
+rounding: a Tinted widget covering the whole wallpaper is a Solid one, and nothing
+on screen would tell you which of the two settings you were in or which to move
+back.
 
 ### One rule for the surface, one question for Auto
 

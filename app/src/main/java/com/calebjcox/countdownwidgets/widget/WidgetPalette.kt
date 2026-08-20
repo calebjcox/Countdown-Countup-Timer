@@ -230,12 +230,17 @@ object WidgetPalette {
      * The hues are opaque, so the alpha is entirely the strength's — which is what makes
      * the dial mean what it says, and why nothing may put an alpha back into the
      * resources. See colors.xml.
+     *
+     * Against `ScrimStrength.SOLID` rather than the top of the dial: a strength is a
+     * percentage of solid, and the dial stops short of solid on purpose. Dividing by its
+     * top instead would stretch every wash to reach opaque there, which is the one thing
+     * that top exists to prevent.
      */
     @ColorInt
     private fun wash(context: Context, @ColorRes hue: Int, scrimStrength: Int): Int =
         ColorUtils.setAlphaComponent(
             color(context, hue),
-            Math.round(ScrimStrength.snap(scrimStrength) * 255f / ScrimStrength.MAX),
+            Math.round(ScrimStrength.snap(scrimStrength) * 255f / ScrimStrength.SOLID),
         )
 
     /** What each tone is drawn in. The same four pairs on every backdrop. */

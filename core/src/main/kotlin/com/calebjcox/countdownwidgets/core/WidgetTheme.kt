@@ -95,12 +95,12 @@ val TextTheme.chosenTone: TextTone?
     }
 
 /**
- * How strong a [Backdrop.SCRIM] wash is, as a percentage of solid.
+ * How strong a [Backdrop.SCRIM] wash is, as a percentage of [SOLID].
  *
  * The dial only the middle backdrop has, because it is the only one with anything to
- * trade: [Backdrop.NONE] has no wash to strengthen and [Backdrop.PANEL] is already at
- * [MAX]. What moving it trades is the two things a wash sits between — how much of the
- * wallpaper still reads through, against how much contrast the text gets.
+ * trade: [Backdrop.NONE] has no wash to strengthen and [Backdrop.PANEL] is already solid.
+ * What moving it trades is the two things a wash sits between — how much of the wallpaper
+ * still reads through, against how much contrast the text gets.
  *
  * Every value that reaches a widget goes through [snap], wherever it came from. The
  * slider snaps itself, so this is for the other door: a hand-edited backup, or a file
@@ -108,8 +108,26 @@ val TextTheme.chosenTone: TextTone?
  */
 object ScrimStrength {
 
-    /** Solid — which is [Backdrop.PANEL], reached from the other end. */
-    const val MAX = 100
+    /**
+     * What a strength is a percentage *of*, and not a value the dial can reach — see
+     * [MAX]. It is the scale rather than an end, so it is what an alpha is worked out
+     * against; using an end of the dial there would silently rescale every wash to it.
+     */
+    const val SOLID = 100
+
+    /** Fine enough to tune with, coarse enough that a drag lands somewhere repeatable. */
+    const val STEP = 5
+
+    /**
+     * One step short of [SOLID], so the dial cannot draw what Solid already draws.
+     *
+     * Not a judgement about how a solid wash looks — it looks like the backdrop next to
+     * it, which is the problem. Two controls reaching one appearance is a state the user
+     * cannot tell which of them they are in, and cannot undo from the one they are
+     * looking at: a Tinted widget at full strength shows nothing of the wallpaper, and
+     * nothing on screen says the backdrop is the setting to move.
+     */
+    const val MAX = SOLID - STEP
 
     /**
      * Nearly nothing, and deliberately not zero. A wash at zero is [Backdrop.NONE] under
@@ -120,22 +138,26 @@ object ScrimStrength {
      */
     const val MIN = 10
 
-    /** Fine enough to tune with, coarse enough that a drag lands somewhere repeatable. */
-    const val STEP = 5
-
     /**
-     * Where the slider starts, and a floor worth knowing about rather than a look.
+     * Where the slider starts: halfway between what the two tones would each ask for.
      *
      * A wash only has to hold up against the wallpaper that fights it — a white one under
-     * the dark wash, a black one under the light — so that is what this is set against.
-     * 75% white over black lands near #BFBFBF, about 5:1 against the dark text; 75% black
-     * over white lands near #404040, further still from the light.
+     * the dark wash, a black one under the light — so that is what the two were measured
+     * against, and they did not agree. The dark wash clears its light text at 65%, where
+     * it lands near #595959; the light one wants 75% against black, near #BFBFBF, for the
+     * same margin under dark text.
      *
-     * One number covers both tones, so it has to be the higher of the two they would each
-     * settle on alone: the dark wash clears its text by 65%, and defaulting there would
-     * leave the light one short of a contrast it needs.
+     * One number covers both, and this is the middle of them rather than the higher, so
+     * what it gives each tone is not the same thing. The dark wash gets more margin than
+     * it asked for; the light one's worst case lands near #B3B3B3, nearer its floor. That
+     * is a floor the value row can afford — it is the one row sized in the tens of points
+     * — and the smaller rows clear it comfortably, being drawn in the darker secondary
+     * tone rather than the value's.
+     *
+     * And it is the *default* rather than a limit. Anyone whose wallpaper is the one that
+     * fights hardest has the dial, which is the whole point of it being there.
      */
-    const val DEFAULT = 75
+    const val DEFAULT = 70
 
     /** The nearest value the dial can actually stop on, and never outside its ends. */
     fun snap(percent: Int): Int =
