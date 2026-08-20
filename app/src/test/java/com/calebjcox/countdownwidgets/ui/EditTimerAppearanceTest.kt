@@ -6,6 +6,7 @@ import com.calebjcox.countdownwidgets.R
 import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.RowVisibility
+import com.calebjcox.countdownwidgets.core.ScrimStrength
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -13,6 +14,7 @@ import com.calebjcox.countdownwidgets.data.Timer
 import com.calebjcox.countdownwidgets.data.TimerStore
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.chip.ChipGroup
+import com.google.android.material.slider.Slider
 import java.time.LocalDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -52,6 +54,7 @@ class EditTimerAppearanceTest {
             setOf(TimeField.MONTH, TimeField.DAY),
         ),
         backdrop = Backdrop.SCRIM,
+        scrimStrength = 40,
         textTheme = TextTheme.BLACK,
         nameVisibility = RowVisibility.ALWAYS,
         targetVisibility = RowVisibility.NEVER,
@@ -90,6 +93,17 @@ class EditTimerAppearanceTest {
             activity.findViewById<ChipGroup>(R.id.text_theme_group).checkedChipId,
         )
         assertEquals(
+            "tint strength slider",
+            40f,
+            activity.findViewById<Slider>(R.id.scrim_strength).value,
+            0f,
+        )
+        assertEquals(
+            "the tint strength slider is on screen for a tinted timer",
+            View.VISIBLE,
+            activity.findViewById<View>(R.id.scrim_strength_group).visibility,
+        )
+        assertEquals(
             "preview footer",
             View.GONE,
             activity.findViewById<TextView>(R.id.preview_footer).visibility,
@@ -102,6 +116,16 @@ class EditTimerAppearanceTest {
         activity.findViewById<MaterialButtonToggleGroup>(R.id.target_visibility_group)
             .check(R.id.target_always)
         activity.findViewById<ChipGroup>(R.id.text_theme_group).check(R.id.text_theme_white)
+        activity.findViewById<Slider>(R.id.scrim_strength).value = ScrimStrength.MAX.toFloat()
+
+        // The dial goes with the wash, so moving off Tinted takes it off screen — and the
+        // value it was left on still has to be saved. A control the user cannot see is
+        // still a control they set.
+        assertEquals(
+            "the tint strength slider stayed on screen for a solid backdrop",
+            View.GONE,
+            activity.findViewById<View>(R.id.scrim_strength_group).visibility,
+        )
 
         activity.findViewById<View>(R.id.save).performClick()
 
@@ -110,5 +134,6 @@ class EditTimerAppearanceTest {
         assertEquals(RowVisibility.WHEN_ROOM, stored.nameVisibility)
         assertEquals(RowVisibility.ALWAYS, stored.targetVisibility)
         assertEquals(TextTheme.WHITE, stored.textTheme)
+        assertEquals(ScrimStrength.MAX, stored.scrimStrength)
     }
 }

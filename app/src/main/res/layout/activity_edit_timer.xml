@@ -346,6 +346,50 @@
                 android:textAppearance="?attr/textAppearanceBodySmall" />
 
             <!--
+              The wash's own dial, shown only while Tinted is the backdrop — the label, the
+              slider and the hint move together, which is what the wrapper is for.
+
+              The slider carries no range here. Its ends and its step come from
+              ScrimStrength at runtime; see EditTimerActivity.setUpScrimSlider, and the
+              note on the appearance fields for why a layout attribute is not allowed to
+              be a second copy of a value core already states.
+            -->
+            <LinearLayout
+                android:id="@+id/scrim_strength_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!--
+                  The one heading here that carries a value, because the slider's own
+                  bubble is only drawn while a finger is on it — so without this the
+                  setting is unreadable the rest of the time. Its text is written by
+                  syncUi; the string here is what it says before the first sync.
+                -->
+                <TextView
+                    android:id="@+id/scrim_strength_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingBottom="8dp"
+                    android:text="@string/scrim_strength"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/scrim_strength"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="@string/scrim_strength" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="8dp"
+                    android:text="@string/scrim_strength_hint"
+                    android:textAppearance="?attr/textAppearanceBodySmall" />
+            </LinearLayout>
+
+            <!--
               Offered on every background, including the solid one. The surface goes the
               opposite way from whichever colour is picked here — Black makes the panel
               light — so there is no backdrop a choice here can be stranded on, and none
