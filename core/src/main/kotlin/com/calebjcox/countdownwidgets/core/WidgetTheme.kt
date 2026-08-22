@@ -138,25 +138,7 @@ object ScrimStrength {
      */
     const val MIN = 10
 
-    /**
-     * Where the slider starts: halfway between what the two tones would each ask for.
-     *
-     * A wash only has to hold up against the wallpaper that fights it — a white one under
-     * the dark wash, a black one under the light — so that is what the two were measured
-     * against, and they did not agree. The dark wash clears its light text at 65%, where
-     * it lands near #595959; the light one wants 75% against black, near #BFBFBF, for the
-     * same margin under dark text.
-     *
-     * One number covers both, and this is the middle of them rather than the higher, so
-     * what it gives each tone is not the same thing. The dark wash gets more margin than
-     * it asked for; the light one's worst case lands near #B3B3B3, nearer its floor. That
-     * is a floor the value row can afford — it is the one row sized in the tens of points
-     * — and the smaller rows clear it comfortably, being drawn in the darker secondary
-     * tone rather than the value's.
-     *
-     * And it is the *default* rather than a limit. Anyone whose wallpaper is the one that
-     * fights hardest has the dial, which is the whole point of it being there.
-     */
+    /** Where the slider starts. */
     const val DEFAULT = 70
 
     /** The nearest value the dial can actually stop on, and never outside its ends. */
