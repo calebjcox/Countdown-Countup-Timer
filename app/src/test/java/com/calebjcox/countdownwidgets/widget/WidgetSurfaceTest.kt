@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import com.calebjcox.countdownwidgets.R
 import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.Precision
+import com.calebjcox.countdownwidgets.core.ScrimStrength
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -19,6 +20,7 @@ import com.calebjcox.countdownwidgets.testing.VariantSelection
 import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -105,6 +107,10 @@ class WidgetSurfaceTest {
             R.drawable.widget_background,
             backgroundOf(root),
         )
+        assertNull(
+            "the prompt kept the deleted timer's wash over its own panel",
+            root.backgroundTintList,
+        )
         assertEquals(
             "the prompt kept the deleted timer's text colour",
             ContextCompat.getColor(context, R.color.widget_text_primary),
@@ -112,15 +118,25 @@ class WidgetSurfaceTest {
         )
     }
 
-    /** The backdrops, each with a text colour, since a scrim's surface depends on both. */
+    /**
+     * The backdrops, each with a text colour, since a scrim's surface depends on both —
+     * and one scrim at a strength nobody would land on by accident, because the strength
+     * is the other half of what a scrim leaves behind.
+     */
     private fun appearances(): List<Timer> = listOf(
         timer.copy(backdrop = Backdrop.NONE, textTheme = TextTheme.LIGHT),
         timer.copy(backdrop = Backdrop.SCRIM, textTheme = TextTheme.WHITE),
         timer.copy(backdrop = Backdrop.SCRIM, textTheme = TextTheme.BLACK),
+        timer.copy(
+            backdrop = Backdrop.SCRIM,
+            textTheme = TextTheme.WHITE,
+            scrimStrength = ScrimStrength.MIN,
+        ),
         timer.copy(backdrop = Backdrop.PANEL),
     )
 
-    private fun describe(of: Timer): String = "${of.backdrop}/${of.textTheme}"
+    private fun describe(of: Timer): String =
+        "${of.backdrop}/${of.textTheme}@${of.scrimStrength}"
 
     /**
      * What the host does with an update: reapply onto the view already on screen when the
@@ -158,6 +174,7 @@ class WidgetSurfaceTest {
      */
     private fun surfaceOf(root: LinearLayout): Map<String, Int?> = mapOf(
         "background" to backgroundOf(root),
+        "tint" to root.backgroundTintList?.defaultColor,
         "name" to root.findViewById<TextView>(R.id.widget_name).currentTextColor,
         "value" to root.findViewById<TextView>(R.id.widget_value).currentTextColor,
         "ticker" to root.findViewById<Chronometer>(R.id.widget_ticker).currentTextColor,

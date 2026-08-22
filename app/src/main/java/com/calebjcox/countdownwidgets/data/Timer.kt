@@ -4,6 +4,7 @@ import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.RowVisibility
+import com.calebjcox.countdownwidgets.core.ScrimStrength
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -32,6 +33,13 @@ data class Timer(
     val textTheme: TextTheme = DEFAULT_TEXT_THEME,
     val backdrop: Backdrop = DEFAULT_BACKDROP,
     /**
+     * How opaque the wash is, on the one backdrop that draws one. Kept on every timer
+     * rather than only on a tinted one, for the reason [textTheme] is: a setting dropped
+     * when the backdrop moves off Tinted is a setting the user has to find again on the
+     * way back. Always a value [ScrimStrength.snap] would return.
+     */
+    val scrimStrength: Int = DEFAULT_SCRIM_STRENGTH,
+    /**
      * How much of a say the cell gets over the two rows either side of the value. The
      * renderer drops a row a cell has no room for; these say whether that decision is
      * the user's or the cell's, which is the question a size cannot answer.
@@ -54,6 +62,7 @@ data class Timer(
         put(KEY_LABEL_STYLE, labelStyle.name)
         put(KEY_TEXT_THEME, textTheme.name)
         put(KEY_BACKDROP, backdrop.name)
+        put(KEY_SCRIM_STRENGTH, scrimStrength)
         put(KEY_NAME_VISIBILITY, nameVisibility.name)
         put(KEY_TARGET_VISIBILITY, targetVisibility.name)
         put(KEY_WRAP_VALUE, wrapValue)
@@ -72,6 +81,7 @@ data class Timer(
         val DEFAULT_LABEL_STYLE = LabelStyle.LONG
         val DEFAULT_TEXT_THEME = TextTheme.AUTO
         val DEFAULT_BACKDROP = Backdrop.NONE
+        const val DEFAULT_SCRIM_STRENGTH = ScrimStrength.DEFAULT
 
         // Both rows left to the cell, because that is what a stored timer carrying
         // neither field is already doing. These two are the default for absent data as
@@ -89,6 +99,7 @@ data class Timer(
         private const val KEY_LABEL_STYLE = "labelStyle"
         private const val KEY_TEXT_THEME = "textTheme"
         private const val KEY_BACKDROP = "backdrop"
+        private const val KEY_SCRIM_STRENGTH = "scrimStrength"
         private const val KEY_NAME_VISIBILITY = "nameVisibility"
         private const val KEY_TARGET_VISIBILITY = "targetVisibility"
         private const val KEY_WRAP_VALUE = "wrapValue"
@@ -134,6 +145,12 @@ data class Timer(
                     ?: DEFAULT_TEXT_THEME,
                 backdrop = enumOf<Backdrop>(json.optString(KEY_BACKDROP))
                     ?: json.legacyBackdrop(),
+                // Snapped rather than taken as written: this one is a number, so unlike
+                // every enum beside it a stored value out of range reads as a value
+                // rather than as nothing, and would reach the widget unexamined.
+                scrimStrength = ScrimStrength.snap(
+                    json.optInt(KEY_SCRIM_STRENGTH, DEFAULT_SCRIM_STRENGTH),
+                ),
                 nameVisibility = enumOf<RowVisibility>(json.optString(KEY_NAME_VISIBILITY))
                     ?: json.legacyVisibility(LEGACY_KEY_SHOW_NAME, DEFAULT_NAME_VISIBILITY),
                 targetVisibility = enumOf<RowVisibility>(json.optString(KEY_TARGET_VISIBILITY))

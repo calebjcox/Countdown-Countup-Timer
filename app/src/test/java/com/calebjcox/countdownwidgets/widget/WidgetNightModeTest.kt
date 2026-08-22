@@ -207,14 +207,17 @@ class WidgetNightModeTest {
     /**
      * What the widget is drawn on, and what its value row is drawn in.
      *
-     * The wash is read as a colour rather than as the resource it came from, and that is
-     * the point of how Auto works: the drawable is one file either way, and it is the
-     * colour *inside* it that carries the qualifier. A test that compared resource ids
-     * would see no difference and would be checking the mechanism instead of the result.
+     * The surface is read as a colour rather than as the resource it came from, which is
+     * what makes one reading serve both backdrops: the panel is a qualified drawable and
+     * the scrim is a tint over an unqualified one, and either way the question is what
+     * ended up behind the text. Comparing resource ids would see no difference on either
+     * and would be checking the mechanism instead of the result.
      */
-    private fun surfaceOf(root: LinearLayout): Pair<Int?, Int> =
-        (root.background as? GradientDrawable)?.color?.defaultColor to
-            root.findViewById<TextView>(R.id.widget_value).currentTextColor
+    private fun surfaceOf(root: LinearLayout): Pair<Int?, Int> {
+        val surface = root.backgroundTintList?.defaultColor
+            ?: (root.background as? GradientDrawable)?.color?.defaultColor
+        return surface to root.findViewById<TextView>(R.id.widget_value).currentTextColor
+    }
 
     /** The panel's primary and secondary text colours in the current configuration. */
     private fun panelColors(): Pair<Int, Int> =

@@ -51,23 +51,21 @@
     <color name="widget_text_shadow">#99000000</color>
 
     <!--
-      The scrim, named for its own tone: the dark one goes under light text and the light
-      one under dark text, which is the whole of what a scrim is for.
+      The two hues a scrim can be, each named for its own tone: the dark one goes under
+      light text and the light one under dark text, which is the whole of what a scrim is
+      for.
 
-      The opacities are the worst case rather than a look. A scrim only has to work
-      against the wallpaper that fights it — a white one under the dark scrim, a black one
-      under the light — so those are what they are set against. 65% black over white lands
-      near #595959, which clears about 5.5:1 against the light text; 75% white over black
-      lands near #BFBFBF, about 5:1 against the dark. Lower and there is a photo that
-      defeats it, which would make the middle backdrop no answer at all; higher and it is
-      the solid panel with extra steps, when the point of choosing it is that the
-      wallpaper still shows through.
+      Opaque, and only these two. How much of either one is actually drawn is the timer's
+      ScrimStrength, applied as a tint over the shape — see WidgetPalette.scrimTintFor.
+      An alpha written in here would be a second answer to the question the timer already
+      answers, and the one that lost would lose silently.
+
+      There is no Auto entry beside them, and there cannot be one: which hue Auto takes is
+      decided per widget alongside the strength and handed to the launcher as a day/night
+      pair, so a resource resolved under one qualifier could only ever be half of it.
     -->
-    <color name="widget_scrim_dark">#A6000000</color>
-    <color name="widget_scrim_light">#BFFFFFFF</color>
-
-    <!-- And the one Auto uses, which is whichever of those two the theme calls for. -->
-    <color name="widget_scrim_auto">@color/widget_scrim_light</color>
+    <color name="widget_scrim_dark">#FF000000</color>
+    <color name="widget_scrim_light">#FFFFFFFF</color>
 
     <!--
       The panel at a named tone. widget_background above is the Auto one and keeps its

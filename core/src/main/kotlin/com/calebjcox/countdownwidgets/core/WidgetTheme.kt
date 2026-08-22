@@ -93,3 +93,55 @@ val TextTheme.chosenTone: TextTone?
         TextTheme.WHITE -> TextTone.WHITE
         TextTheme.BLACK -> TextTone.BLACK
     }
+
+/**
+ * How strong a [Backdrop.SCRIM] wash is, as a percentage of [SOLID].
+ *
+ * The dial only the middle backdrop has, because it is the only one with anything to
+ * trade: [Backdrop.NONE] has no wash to strengthen and [Backdrop.PANEL] is already solid.
+ * What moving it trades is the two things a wash sits between — how much of the wallpaper
+ * still reads through, against how much contrast the text gets.
+ *
+ * Every value that reaches a widget goes through [snap], wherever it came from. The
+ * slider snaps itself, so this is for the other door: a hand-edited backup, or a file
+ * written by a version whose step was finer than this one's.
+ */
+object ScrimStrength {
+
+    /**
+     * What a strength is a percentage *of*, and not a value the dial can reach — see
+     * [MAX]. It is the scale rather than an end, so it is what an alpha is worked out
+     * against; using an end of the dial there would silently rescale every wash to it.
+     */
+    const val SOLID = 100
+
+    /** Fine enough to tune with, coarse enough that a drag lands somewhere repeatable. */
+    const val STEP = 5
+
+    /**
+     * One step short of [SOLID], so the dial cannot draw what Solid already draws.
+     *
+     * Not a judgement about how a solid wash looks — it looks like the backdrop next to
+     * it, which is the problem. Two controls reaching one appearance is a state the user
+     * cannot tell which of them they are in, and cannot undo from the one they are
+     * looking at: a Tinted widget at full strength shows nothing of the wallpaper, and
+     * nothing on screen says the backdrop is the setting to move.
+     */
+    const val MAX = SOLID - STEP
+
+    /**
+     * Nearly nothing, and deliberately not zero. A wash at zero is [Backdrop.NONE] under
+     * the middle backdrop's name, and not even a good one: the layout that carries the
+     * text shadow is chosen by the backdrop rather than by the strength, so the text
+     * would be on the bare photo with the one thing that makes that survivable switched
+     * off. See WidgetRenderer.layoutFor.
+     */
+    const val MIN = 10
+
+    /** Where the slider starts. */
+    const val DEFAULT = 70
+
+    /** The nearest value the dial can actually stop on, and never outside its ends. */
+    fun snap(percent: Int): Int =
+        (percent.coerceIn(MIN, MAX) + STEP / 2) / STEP * STEP
+}

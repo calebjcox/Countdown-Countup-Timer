@@ -1,6 +1,7 @@
 package com.calebjcox.countdownwidgets.widget
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.content.res.Resources
 import android.graphics.Typeface
 import android.graphics.text.LineBreaker
@@ -414,6 +415,13 @@ object WidgetRenderer {
      */
     private const val SET_TEXT_COLOR = "setTextColor"
 
+    /**
+     * `View.setBackgroundTintList`, reached by name for the same reason: it is the only
+     * remotable way to colour a shape without giving up the shape, and so the only way a
+     * scrim can carry both a corner radius and a strength.
+     */
+    private const val SET_BACKGROUND_TINT = "setBackgroundTintList"
+
     private fun render(
         context: Context,
         appWidgetId: Int,
@@ -446,6 +454,20 @@ object WidgetRenderer {
             android.R.id.background,
             "setBackgroundResource",
             WidgetPalette.backgroundFor(context, timer.backdrop, timer.textTheme),
+        )
+        // And what to tint it, which for a scrim is the whole of its colour: the shape
+        // above is one file for every scrim there is. Set on every backdrop for the reason
+        // the background is — a tint left behind draws the next timer's panel in the last
+        // one's wash — and as a pair, so Auto's wash is picked by the launcher at the
+        // moment it draws, alongside the text on it. See WidgetPalette.ScrimTint.
+        setScrimTint(
+            views,
+            WidgetPalette.scrimTintFor(
+                context = context,
+                backdrop = timer.backdrop,
+                textTheme = timer.textTheme,
+                scrimStrength = timer.scrimStrength,
+            ),
         )
 
         // Applied explicitly on every variant rather than left to whichever XML default
@@ -1054,6 +1076,23 @@ object WidgetRenderer {
     }
 
     /**
+     * Hands the wash over as the two colours the host picks between, or clears it.
+     *
+     * `RemoteViews` resolves the pair against the configuration it draws in, which is what
+     * a scrim needs and a resource can no longer give it: the strength is a number chosen
+     * per timer, so there is no qualifier to hang it on. Null on both sides is how a
+     * backdrop with no wash says so — the call still has to happen. See [render].
+     */
+    private fun setScrimTint(views: RemoteViews, tint: WidgetPalette.ScrimTint?) {
+        views.setColorStateList(
+            android.R.id.background,
+            SET_BACKGROUND_TINT,
+            tint?.let { ColorStateList.valueOf(it.notNight) },
+            tint?.let { ColorStateList.valueOf(it.night) },
+        )
+    }
+
+    /**
      * The two layouts differ only in the text shadow. They are separate files rather than
      * one file configured at runtime because `RemoteViews` dispatches only
      * single-argument remotable methods, and `setShadowLayer` takes four — so a shadow can
@@ -1140,6 +1179,7 @@ object WidgetRenderer {
             "setBackgroundResource",
             R.drawable.widget_background,
         )
+        setScrimTint(views, null)
         views.setColorStateList(R.id.widget_value, SET_TEXT_COLOR, R.color.widget_text_primary)
         val padding = resources.getDimensionPixelSize(variant.density.padding)
         views.setViewPadding(android.R.id.background, padding, padding, padding, padding)

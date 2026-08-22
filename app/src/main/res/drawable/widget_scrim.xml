@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The scrim's shape, for every scrim there is. Which colour it ends up and how much of it
+  shows are a tint the renderer sets per widget, from the timer's text tone and its
+  ScrimStrength; see WidgetPalette.scrimTintFor.
+
+  Opaque white, because a tint is applied SRC_IN: the tint supplies the colour and the
+  shape supplies the coverage, so the alpha the user asked for only survives where this
+  is solid. A translucent fill here would multiply into it and quietly halve the dial.
+
+  Same corner radius as widget_background.xml: a launcher rounds @android:id/background
+  itself, and a shape that disagrees with it shows as a sliver at each corner.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/widget_corner_radius" />
+    <solid android:color="#FFFFFFFF" />
+</shape>
