@@ -10,7 +10,7 @@ on:
 
 jobs:
   review:
-    # Your own pull requests, and not while they are drafts.
+    # Your own pull requests and Claude's, and not while they are drafts.
     #
     # The action does check that whoever triggered it has write access, but
     # enforces that by failing the run — a red X on a stranger's pull request,
@@ -18,12 +18,20 @@ jobs:
     # the one collaborator this repo has; a second would need
     # contains(fromJSON('["OWNER","COLLABORATOR"]'), ...).
     #
+    # claude[bot] is named separately because a pull request the action opens
+    # from an issue is authored by the app, whose association is not OWNER — so
+    # the work most worth a second pair of eyes, nobody having written it by
+    # hand, is exactly the work an author check alone lets through unreviewed.
+    # It needs allowed_bots below to match: the action rejects a bot actor before
+    # Claude starts, and the two together are what let this run at all.
+    #
     # The draft check is here for the same reason synchronize is missing above:
     # "opened" fires on drafts, and the skill stops on one only after the job has
     # cloned the marketplace and started Claude. Nothing is lost by waiting — the
     # review runs for real on the later ready_for_review.
     if: >-
-      github.event.pull_request.author_association == 'OWNER' &&
+      (github.event.pull_request.author_association == 'OWNER' ||
+      github.event.pull_request.user.login == 'claude[bot]') &&
       github.event.pull_request.draft == false
 
     runs-on: ubuntu-latest
@@ -52,6 +60,11 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # Paired with the claude[bot] clause in the if above. Named rather than
+          # "*", which on a public repo would let any installed app start this.
+          allowed_bots: "claude[bot]"
+
           plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
           plugins: "code-review@claude-code-plugins"
 
