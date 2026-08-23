@@ -22,6 +22,7 @@ import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.Rendering
 import com.calebjcox.countdownwidgets.core.RowVisibility
+import com.calebjcox.countdownwidgets.core.ScrimOpacity
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -58,6 +59,7 @@ class EditTimerActivity : AppCompatActivity() {
     private var labelStyle = Timer.DEFAULT_LABEL_STYLE
     private var textTheme = Timer.DEFAULT_TEXT_THEME
     private var backdrop = Timer.DEFAULT_BACKDROP
+    private var scrimOpacity = Timer.DEFAULT_SCRIM_OPACITY
     private var nameVisibility = Timer.DEFAULT_NAME_VISIBILITY
     private var targetVisibility = Timer.DEFAULT_TARGET_VISIBILITY
     private var wrapValue = Timer.DEFAULT_WRAP_VALUE
@@ -96,6 +98,7 @@ class EditTimerActivity : AppCompatActivity() {
         }
 
         setUpToolbar(isExisting = existing != null)
+        setUpOpacitySlider()
         setUpListeners()
         refresh()
     }
@@ -111,6 +114,7 @@ class EditTimerActivity : AppCompatActivity() {
         labelStyle = timer.labelStyle
         textTheme = timer.textTheme
         backdrop = timer.backdrop
+        scrimOpacity = timer.scrimOpacity
         nameVisibility = timer.nameVisibility
         targetVisibility = timer.targetVisibility
         wrapValue = timer.wrapValue
@@ -124,6 +128,14 @@ class EditTimerActivity : AppCompatActivity() {
         labelStyle = LabelStyle.valueOf(state.getString(STATE_LABEL_STYLE, labelStyle.name))
         textTheme = TextTheme.valueOf(state.getString(STATE_TEXT_THEME, textTheme.name))
         backdrop = Backdrop.valueOf(state.getString(STATE_BACKDROP, backdrop.name))
+        // Snapped like every other door into this field. The bundle is only ever written
+        // by this activity, so nothing reaches here off-step today — but the field is
+        // documented as always snapped and `Slider` enforces it rather than rounding:
+        // assigning it an off-step value is accepted, survives measure and layout, and
+        // throws IllegalStateException the first time the slider is *drawn*. So the cost
+        // of skipping this is an editor that dies as it paints, not a dial in the wrong
+        // place.
+        scrimOpacity = ScrimOpacity.snap(state.getInt(STATE_SCRIM_OPACITY, scrimOpacity))
         nameVisibility =
             RowVisibility.valueOf(state.getString(STATE_NAME_VISIBILITY, nameVisibility.name))
         targetVisibility =
@@ -140,6 +152,7 @@ class EditTimerActivity : AppCompatActivity() {
         outState.putString(STATE_LABEL_STYLE, labelStyle.name)
         outState.putString(STATE_TEXT_THEME, textTheme.name)
         outState.putString(STATE_BACKDROP, backdrop.name)
+        outState.putInt(STATE_SCRIM_OPACITY, scrimOpacity)
         outState.putString(STATE_NAME_VISIBILITY, nameVisibility.name)
         outState.putString(STATE_TARGET_VISIBILITY, targetVisibility.name)
         outState.putBoolean(STATE_WRAP_VALUE, wrapValue)
@@ -218,6 +231,12 @@ class EditTimerActivity : AppCompatActivity() {
             refresh()
         }
 
+        binding.scrimOpacity.addOnChangeListener { _, value, _ ->
+            if (syncing) return@addOnChangeListener
+            scrimOpacity = value.toInt()
+            refresh()
+        }
+
         // A ChipGroup rather than a toggle group, so the callback shape differs: it
         // reports the whole selection rather than one button, and an empty one during
         // the group's own bookkeeping is not the user choosing nothing.
@@ -256,6 +275,27 @@ class EditTimerActivity : AppCompatActivity() {
             refresh()
         }
         binding.save.setOnClickListener { save() }
+    }
+
+    /**
+     * Gives the opacity slider its ends, its step and the words it says.
+     *
+     * From [ScrimOpacity] rather than from the layout, for the reason the appearance
+     * fields above are held rather than read back off the controls: a range written into
+     * the XML is a second copy of the one in core, free to disagree with it, and the way
+     * it would disagree is a saved timer whose opacity the slider cannot reach.
+     *
+     * The order is the constraint. A `Slider` starts at 0..1, and each of these is checked
+     * against the ones already set — so the top has to move before the bottom can pass it,
+     * and the step before a value has to land on it.
+     */
+    private fun setUpOpacitySlider() {
+        binding.scrimOpacity.valueTo = ScrimOpacity.MAX.toFloat()
+        binding.scrimOpacity.valueFrom = ScrimOpacity.MIN.toFloat()
+        binding.scrimOpacity.stepSize = ScrimOpacity.STEP.toFloat()
+        binding.scrimOpacity.setLabelFormatter { value ->
+            getString(R.string.scrim_opacity_value, value.toInt())
+        }
     }
 
     /**
@@ -327,6 +367,8 @@ class EditTimerActivity : AppCompatActivity() {
                 Backdrop.PANEL -> R.id.backdrop_panel
             },
         )
+        binding.scrimOpacity.value = scrimOpacity.toFloat()
+        binding.scrimOpacityLabel.text = getString(R.string.scrim_opacity_label, scrimOpacity)
         binding.textThemeGroup.check(
             when (textTheme) {
                 TextTheme.AUTO -> R.id.text_theme_auto
@@ -337,6 +379,12 @@ class EditTimerActivity : AppCompatActivity() {
             },
         )
         syncing = false
+
+        // The dial belongs to the wash, so it is on screen exactly when there is a wash to
+        // move. Hidden rather than disabled: a control that cannot do anything is a
+        // question about why not, and the answer is already the backdrop above it.
+        binding.scrimOpacityGroup.visibility =
+            if (backdrop == Backdrop.SCRIM) View.VISIBLE else View.GONE
 
         val showTime = precision == Precision.DATE_TIME
         binding.clockUnits.visibility = if (showTime) View.VISIBLE else View.GONE
@@ -394,14 +442,7 @@ class EditTimerActivity : AppCompatActivity() {
         // compositing gives it straight back; a scrim's is not, so the stand-in shows
         // through it exactly as a real wallpaper would.
         val behind = ContextCompat.getColor(this, R.color.preview_wallpaper_stand_in)
-        // The default until there is a control for it; the slider arrives with the
-        // editor's own copy of the value.
-        val surface = WidgetPalette.surfaceColorFor(
-            this,
-            backdrop,
-            textTheme,
-            Timer.DEFAULT_SCRIM_OPACITY,
-        )
+        val surface = WidgetPalette.surfaceColorFor(this, backdrop, textTheme, scrimOpacity)
         binding.previewCard.setCardBackgroundColor(
             if (surface == null) behind else ColorUtils.compositeColors(surface, behind),
         )
@@ -485,6 +526,7 @@ class EditTimerActivity : AppCompatActivity() {
                 labelStyle = labelStyle,
                 textTheme = textTheme,
                 backdrop = backdrop,
+                scrimOpacity = scrimOpacity,
                 nameVisibility = nameVisibility,
                 targetVisibility = targetVisibility,
                 wrapValue = wrapValue,
@@ -523,6 +565,7 @@ class EditTimerActivity : AppCompatActivity() {
         private const val STATE_LABEL_STYLE = "labelStyle"
         private const val STATE_TEXT_THEME = "textTheme"
         private const val STATE_BACKDROP = "backdrop"
+        private const val STATE_SCRIM_OPACITY = "scrimOpacity"
         private const val STATE_NAME_VISIBILITY = "nameVisibility"
         private const val STATE_TARGET_VISIBILITY = "targetVisibility"
         private const val STATE_WRAP_VALUE = "wrapValue"

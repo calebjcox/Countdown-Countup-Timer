@@ -53,6 +53,12 @@
     <string name="backdrop_scrim">Tinted</string>
     <string name="backdrop_panel">Solid</string>
     <string name="backdrop_hint">Tinted washes the wallpaper behind the text instead of covering it, so the text reads whatever the wallpaper is doing.</string>
+    <string name="scrim_opacity">Opacity</string>
+    <!-- The heading over the slider, carrying the value it is on, e.g. "Opacity: 70%". -->
+    <string name="scrim_opacity_label">Opacity: %1$d%%</string>
+    <string name="scrim_opacity_hint">How much of the wallpaper the wash covers.</string>
+    <!-- The slider's own bubble, shown while it is being dragged, e.g. "70%". -->
+    <string name="scrim_opacity_value">%1$d%%</string>
     <string name="text_color">Text color</string>
     <string name="text_color_auto">Auto</string>
     <string name="text_color_light">Light</string>
