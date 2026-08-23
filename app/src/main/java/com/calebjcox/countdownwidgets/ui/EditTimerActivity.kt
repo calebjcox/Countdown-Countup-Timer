@@ -394,7 +394,14 @@ class EditTimerActivity : AppCompatActivity() {
         // compositing gives it straight back; a scrim's is not, so the stand-in shows
         // through it exactly as a real wallpaper would.
         val behind = ContextCompat.getColor(this, R.color.preview_wallpaper_stand_in)
-        val surface = WidgetPalette.surfaceColorFor(this, backdrop, textTheme)
+        // The default until there is a control for it; the slider arrives with the
+        // editor's own copy of the value.
+        val surface = WidgetPalette.surfaceColorFor(
+            this,
+            backdrop,
+            textTheme,
+            Timer.DEFAULT_SCRIM_OPACITY,
+        )
         binding.previewCard.setCardBackgroundColor(
             if (surface == null) behind else ColorUtils.compositeColors(surface, behind),
         )
