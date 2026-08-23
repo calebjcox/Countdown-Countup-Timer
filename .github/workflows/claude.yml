@@ -56,9 +56,14 @@ jobs:
       actions: read
 
     steps:
+      # Full history, for the reason claude-code-review.yml states: CLAUDE.md puts
+      # a change's reasoning in its commit message and expects git log -S and git
+      # blame to reach it. A hand-asked pass answering "what is this line for" or
+      # "was that comment filed anywhere" needs the same history the automatic one
+      # gets, and a shallow checkout leaves it nothing to read.
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       # No prompt input. That is necessary for tag mode, where Claude waits for a
       # real mention instead of running something fixed, but not sufficient on its
