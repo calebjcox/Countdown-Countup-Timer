@@ -74,12 +74,52 @@ class WidgetThemeTest {
 
     @Test
     fun `the plain tones side with the tinted ones they stand in for`() {
-        // What a scrim is picked from — see WidgetPalette.scrimFor. White has to count as
+        // What a scrim is picked from — see WidgetPalette.scrimTintFor. White has to count as
         // light and black as dark, or a scrim would be drawn the same way as the text it
         // is meant to separate from the wallpaper, which is no separation at all.
         assertTrue(TextTone.WHITE.isLight)
         assertTrue(TextTone.LIGHT.isLight)
         assertFalse(TextTone.BLACK.isLight)
         assertFalse(TextTone.DARK.isLight)
+    }
+
+    @Test
+    fun `a scrim opacity is snapped to a step and held between the ends`() {
+        // The slider stops on these by itself. Everything else that can set an opacity —
+        // a backup a user opened in a text editor, a file from a build whose step was
+        // finer — comes through here, so what it guards is a widget drawn at an opacity
+        // its own editor cannot show or undo.
+        assertEquals(ScrimOpacity.MIN, ScrimOpacity.snap(Int.MIN_VALUE))
+        assertEquals(ScrimOpacity.MAX, ScrimOpacity.snap(Int.MAX_VALUE))
+        assertEquals(45, ScrimOpacity.snap(43))
+        assertEquals(45, ScrimOpacity.snap(47))
+
+        for (percent in ScrimOpacity.MIN..ScrimOpacity.MAX) {
+            val snapped = ScrimOpacity.snap(percent)
+            assertEquals("$percent landed off the step", 0, snapped % ScrimOpacity.STEP)
+            assertTrue(
+                "$percent snapped to $snapped, further than half a step",
+                kotlin.math.abs(snapped - percent) <= ScrimOpacity.STEP / 2,
+            )
+        }
+    }
+
+    @Test
+    fun `the opacity the slider starts on is one it can stop on`() {
+        // Both ends too: a range whose ends are off the step is a slider that refuses to
+        // lay itself out at all.
+        for (fixed in listOf(ScrimOpacity.MIN, ScrimOpacity.DEFAULT, ScrimOpacity.MAX)) {
+            assertEquals(fixed, ScrimOpacity.snap(fixed))
+        }
+    }
+
+    @Test
+    fun `the dial reaches both ends of the range it claims`() {
+        // Nothing here rounds the ends away, which a step that did not divide the range
+        // would: the wash a user dragged to either end is the end they see, and both are
+        // reachable rather than approached.
+        assertEquals(ScrimOpacity.MIN, ScrimOpacity.snap(ScrimOpacity.MIN))
+        assertEquals(ScrimOpacity.MAX, ScrimOpacity.snap(ScrimOpacity.MAX))
+        assertEquals(0, (ScrimOpacity.MAX - ScrimOpacity.MIN) % ScrimOpacity.STEP)
     }
 }

@@ -217,9 +217,16 @@ than two:
 
 Tinted is the one for a wallpaper that defeats every colour. It keeps the wallpaper
 visible, which is the reason to want a transparent widget at all, while making the
-contrast a property of the widget instead of a bet about the photo. Its opacities
-are set against the worst case — a white wallpaper under the dark wash, a black one
-under the light — rather than by eye, so there is no photo it loses to.
+contrast a property of the widget instead of a bet about the photo.
+
+**Opacity** is how much of the wash is drawn, from 0 to 100% in steps of 5 — the one
+setting that is a dial rather than a choice, because it is the one trade only the
+person looking at their own wallpaper can make: more of the photo, or more contrast.
+
+It starts at 70%, between what the two tones would each ask for on their own: the
+dark wash clears its light text at 65% over a white wallpaper, the light one wants
+75% over a black one. The dial is there for anyone whose photo is the one that
+fights hardest.
 
 ### One rule for the surface, one question for Auto
 
@@ -243,9 +250,12 @@ turns on one thing: whether the text is on the wallpaper.
 
 Getting that backwards is a widget that ignores dark mode: a wash picked from the
 wallpaper's hint never changes when the phone does, because changing theme does not
-change the wallpaper. Auto on those two is therefore handed to the launcher as a
-resource id rather than a colour, so it resolves the text and the surface together,
-from one qualifier, at the moment it draws them.
+change the wallpaper. So Auto on those two is never resolved here — it is handed to
+the launcher unresolved and it resolves the text and the surface together, at the
+moment it draws them. Usually that means a resource id, which carries the qualifier
+on its own; the wash cannot be one, because an opacity chosen per timer is not
+something a qualifier can say, so it goes over as a pair of colours the launcher
+picks between instead.
 
 One caveat: `ACTION_WALLPAPER_CHANGED` is not delivered to manifest receivers, so
 after changing wallpaper the colour settles on the widget's next refresh rather

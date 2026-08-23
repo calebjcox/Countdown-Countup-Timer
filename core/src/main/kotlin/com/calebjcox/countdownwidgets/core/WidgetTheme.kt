@@ -93,3 +93,55 @@ val TextTheme.chosenTone: TextTone?
         TextTheme.WHITE -> TextTone.WHITE
         TextTheme.BLACK -> TextTone.BLACK
     }
+
+/**
+ * How opaque a [Backdrop.SCRIM] wash is, as a percentage.
+ *
+ * The dial only the middle backdrop has, because it is the only one with anything to
+ * trade: [Backdrop.NONE] has no wash to thicken and [Backdrop.PANEL] is already at [MAX].
+ * What moving it trades is the two things a wash sits between — how much of the wallpaper
+ * still reads through, against how much contrast the text gets.
+ *
+ * Both ends are reachable, and each is one of the backdrops beside it under this one's
+ * name. That is not a state to be protected from: they are the ends of a range the user
+ * can see, and the way back out of either is the drag that got there.
+ *
+ * Every value that reaches a widget goes through [snap], wherever it came from. The
+ * slider snaps itself, so this is for the other door: a hand-edited backup, or a file
+ * written by a version whose step was finer than this one's.
+ */
+object ScrimOpacity {
+
+    /**
+     * Nothing drawn at all — and still not [Backdrop.NONE], which is the thing to know
+     * here. Two questions are answered by the backdrop rather than by this number, so
+     * both keep answering as though there were a surface once there is none:
+     *
+     * - **The text shadow.** `Backdrop.drawsOnWallpaper` picks the layout that carries
+     *   it, and [Backdrop.SCRIM] is not that backdrop at any opacity, so the text sits on
+     *   the bare photo unshadowed. See WidgetRenderer.layoutFor.
+     * - **Who answers [TextTheme.AUTO].** The same predicate hands that to the system
+     *   theme, because a wash is a surface this app draws and follows the theme. At zero
+     *   there is nothing to follow it, and the wallpaper — which [Backdrop.NONE] would
+     *   have asked, through `WallpaperColors.HINT_SUPPORTS_DARK_TEXT` — is not consulted.
+     *   A light-mode phone under a dark photo therefore draws its dark tone onto it.
+     *
+     * Both are reachable only by dragging the dial to its end, and the same drag is the
+     * way back. Neither is a reason to move this off zero — but a reader changing what
+     * happens here needs both halves, not the shadow alone.
+     */
+    const val MIN = 0
+
+    /** Solid, and what a percentage here is a percentage of. */
+    const val MAX = 100
+
+    /** Fine enough to tune with, coarse enough that a drag lands somewhere repeatable. */
+    const val STEP = 5
+
+    /** Where the slider starts. */
+    const val DEFAULT = 70
+
+    /** The nearest value the dial can actually stop on, and never outside its ends. */
+    fun snap(percent: Int): Int =
+        (percent.coerceIn(MIN, MAX) + STEP / 2) / STEP * STEP
+}

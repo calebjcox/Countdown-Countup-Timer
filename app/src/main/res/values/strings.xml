@@ -38,8 +38,8 @@
     <string name="units_section">Units to show</string>
     <string name="units_hint">Pick any combination. Seconds tick live on the widget; the units above them are filled in automatically so the clock reads correctly.</string>
     <string name="style_section">Appearance</string>
-    <string name="row_name">The timer\'s name</string>
-    <string name="row_target">The date it counts to</string>
+    <string name="row_name">Show the timer\'s name</string>
+    <string name="row_target">Show the date it counts to</string>
     <!-- Shared by both row groups above. -->
     <string name="row_always">Always</string>
     <string name="row_when_room">If it fits</string>
@@ -53,6 +53,12 @@
     <string name="backdrop_scrim">Tinted</string>
     <string name="backdrop_panel">Solid</string>
     <string name="backdrop_hint">Tinted washes the wallpaper behind the text instead of covering it, so the text reads whatever the wallpaper is doing.</string>
+    <string name="scrim_opacity">Opacity</string>
+    <!-- The heading over the slider, carrying the value it is on, e.g. "Opacity: 70%". -->
+    <string name="scrim_opacity_label">Opacity: %1$d%%</string>
+    <string name="scrim_opacity_hint">How much of the wallpaper the wash covers.</string>
+    <!-- The slider's own bubble, shown while it is being dragged, e.g. "70%". -->
+    <string name="scrim_opacity_value">%1$d%%</string>
     <string name="text_color">Text color</string>
     <string name="text_color_auto">Auto</string>
     <string name="text_color_light">Light</string>
@@ -61,6 +67,11 @@
     <string name="text_color_black">Black</string>
     <string name="text_color_hint">Light and Dark are tinted to match your wallpaper. White and Black are not, so they hold up on a wallpaper that defeats the others.</string>
     <string name="preview_section">Preview</string>
+    <!--
+      One switch for every hint on the screen: they are there to be read once and are
+      clutter afterwards, so nothing shows them until this is turned on.
+    -->
+    <string name="show_hints">Show help</string>
     <string name="save">Save</string>
     <string name="delete">Delete</string>
     <string name="delete_timer_title">Delete this timer?</string>

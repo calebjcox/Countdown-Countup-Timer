@@ -4,6 +4,7 @@ import com.calebjcox.countdownwidgets.core.Backdrop
 import com.calebjcox.countdownwidgets.core.LabelStyle
 import com.calebjcox.countdownwidgets.core.Precision
 import com.calebjcox.countdownwidgets.core.RowVisibility
+import com.calebjcox.countdownwidgets.core.ScrimOpacity
 import com.calebjcox.countdownwidgets.core.TextTheme
 import com.calebjcox.countdownwidgets.core.TimeField
 import com.calebjcox.countdownwidgets.core.TimerSpec
@@ -32,6 +33,7 @@ class TimerBackupTest {
                 labelStyle = LabelStyle.LONG,
                 textTheme = TextTheme.DARK,
                 backdrop = Backdrop.PANEL,
+                scrimOpacity = ScrimOpacity.MIN,
                 nameVisibility = RowVisibility.NEVER,
                 targetVisibility = RowVisibility.WHEN_ROOM,
                 wrapValue = false,
@@ -45,6 +47,7 @@ class TimerBackupTest {
                 labelStyle = LabelStyle.SHORT,
                 textTheme = TextTheme.WHITE,
                 backdrop = Backdrop.SCRIM,
+                scrimOpacity = 40,
                 nameVisibility = RowVisibility.ALWAYS,
                 targetVisibility = RowVisibility.NEVER,
                 wrapValue = true,
@@ -177,6 +180,72 @@ class TimerBackupTest {
     }
 
     @Test
+    fun `a backup made before the tint had an opacity is read at today's default`() {
+        // The one place the rule beside it is deliberately not followed. Everything else
+        // here reads absent as what the widget was already doing; there is no such value
+        // to read for this one, because the wash came in two — 65% under light text and
+        // 75% under dark — and a single dial covering both is the trade this app has
+        // chosen. So an old Tinted timer with dark text does thin slightly on upgrade.
+        // That is a change its owner can see and can undo with the dial, which is what
+        // makes it affordable. See the discussion on #28.
+        val decoded = TimerBackup.decode(
+            """[{"id":"christmas","name":"Christmas","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM"}]""",
+        )
+
+        val timer = (decoded as TimerBackup.Result.Ok).timers.single()
+        assertEquals(ScrimOpacity.DEFAULT, timer.scrimOpacity)
+    }
+
+    @Test
+    fun `an opacity the dial cannot stop on is read as the nearest one it can`() {
+        // The one setting that is a number, so the one whose stored value can be wrong
+        // rather than merely unrecognised: an enum nobody can spell falls back to a
+        // default, and 4000 would otherwise be handed to the widget as written.
+        val decoded = TimerBackup.decode(
+            """[{"id":"low","name":"Low","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM","scrimOpacity":-5},
+              {"id":"odd","name":"Odd","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM","scrimOpacity":43},
+              {"id":"high","name":"High","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM","scrimOpacity":4000}]""",
+        )
+
+        val timers = (decoded as TimerBackup.Result.Ok).timers
+        assertEquals(
+            listOf(ScrimOpacity.MIN, 45, ScrimOpacity.MAX),
+            timers.map { it.scrimOpacity },
+        )
+    }
+
+    @Test
+    fun `an opacity that is not a number at all reads as the default`() {
+        // The other way this field can be wrong, and the one a person makes rather than a
+        // program: a percent sign left on, a null where a number was deleted, the wrong
+        // type entirely. Hand-edited backups are the reason this field is guarded at all
+        // — see ScrimOpacity — and the test beside this one only covers values that are
+        // already numbers.
+        //
+        // Degrading to the default is what every enum here does. It matters more for this
+        // one because the wrong answer would be silent: the timer keeps Backdrop.SCRIM,
+        // so 0% is a Tinted widget drawing no wash, with no shadow to stand in for it.
+        val decoded = TimerBackup.decode(
+            """[{"id":"percent","name":"Percent","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM","scrimOpacity":"70%"},
+              {"id":"null","name":"Null","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM","scrimOpacity":null},
+              {"id":"boolean","name":"Boolean","target":"2026-12-25T00:00:00",
+               "precision":"DATE","fields":["DAY"],"backdrop":"SCRIM","scrimOpacity":true}]""",
+        )
+
+        val timers = (decoded as TimerBackup.Result.Ok).timers
+        assertEquals(
+            listOf(ScrimOpacity.DEFAULT, ScrimOpacity.DEFAULT, ScrimOpacity.DEFAULT),
+            timers.map { it.scrimOpacity },
+        )
+    }
+
+    @Test
     fun `a backup made before wrapping existed is allowed to wrap`() {
         // The opposite of what the test above wants, and the pair is the point. A missing
         // row toggle has to mean "as it was" or an old file would delete a row someone
@@ -210,6 +279,7 @@ class TimerBackupTest {
         labelStyle: LabelStyle = Timer.DEFAULT_LABEL_STYLE,
         textTheme: TextTheme = Timer.DEFAULT_TEXT_THEME,
         backdrop: Backdrop = Timer.DEFAULT_BACKDROP,
+        scrimOpacity: Int = Timer.DEFAULT_SCRIM_OPACITY,
         nameVisibility: RowVisibility = Timer.DEFAULT_NAME_VISIBILITY,
         targetVisibility: RowVisibility = Timer.DEFAULT_TARGET_VISIBILITY,
         wrapValue: Boolean = Timer.DEFAULT_WRAP_VALUE,
@@ -220,6 +290,7 @@ class TimerBackupTest {
         labelStyle = labelStyle,
         textTheme = textTheme,
         backdrop = backdrop,
+        scrimOpacity = scrimOpacity,
         nameVisibility = nameVisibility,
         targetVisibility = targetVisibility,
         wrapValue = wrapValue,
