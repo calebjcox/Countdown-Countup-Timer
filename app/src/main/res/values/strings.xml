@@ -38,8 +38,8 @@
     <string name="units_section">Units to show</string>
     <string name="units_hint">Pick any combination. Seconds tick live on the widget; the units above them are filled in automatically so the clock reads correctly.</string>
     <string name="style_section">Appearance</string>
-    <string name="row_name">The timer\'s name</string>
-    <string name="row_target">The date it counts to</string>
+    <string name="row_name">Show the timer\'s name</string>
+    <string name="row_target">Show the date it counts to</string>
     <!-- Shared by both row groups above. -->
     <string name="row_always">Always</string>
     <string name="row_when_room">If it fits</string>
