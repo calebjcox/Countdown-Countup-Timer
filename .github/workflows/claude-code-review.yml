@@ -1,0 +1,70 @@
+name: Claude Code Review
+
+# Deliberately not "synchronize": the review skill skips a pull request that
+# already carries a comment from Claude, so every push after the first would boot
+# a runner only to exit early. A second pass is asked for by hand — see claude.yml
+# for what that pass actually is.
+on:
+  pull_request:
+    types: [opened, ready_for_review, reopened]
+
+jobs:
+  review:
+    # Your own pull requests, and not while they are drafts.
+    #
+    # The action does check that whoever triggered it has write access, but
+    # enforces that by failing the run — a red X on a stranger's pull request,
+    # after the runner has already started. This skips the job instead. OWNER is
+    # the one collaborator this repo has; a second would need
+    # contains(fromJSON('["OWNER","COLLABORATOR"]'), ...).
+    #
+    # The draft check is here for the same reason synchronize is missing above:
+    # "opened" fires on drafts, and the skill stops on one only after the job has
+    # cloned the marketplace and started Claude. Nothing is lost by waiting — the
+    # review runs for real on the later ready_for_review.
+    if: >-
+      github.event.pull_request.author_association == 'OWNER' &&
+      github.event.pull_request.draft == false
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      # Required for the action's default GitHub App authentication, separately
+      # from the token below.
+      id-token: write
+
+    steps:
+      # Full history rather than the shallow default, because of what this job is
+      # for. CLAUDE.md files a change's reasoning in its commit message and expects
+      # a reader to reach it with git log -S and git blame from the line in
+      # question. A pull_request checkout is a single grafted commit, which leaves
+      # both with nothing to find — so a reviewer cannot check whether a deleted
+      # before/after comment was in fact filed, which is the convention it is here
+      # to enforce.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
+          plugins: "code-review@claude-code-plugins"
+
+          # The bare number. The skill reaches GitHub through gh, which takes a
+          # number, an https:// URL, or a branch name — and reads anything else as
+          # a branch. The number resolves against the checkout's origin remote.
+          #
+          # --comment is what puts the findings on the pull request. Without it the
+          # review is written to this run's log and nobody sees it.
+          prompt: "/code-review:code-review --comment ${{ github.event.pull_request.number }}"
+
+          # Redundant-looking and not redundant: the skill's own frontmatter allows
+          # this tool, but the action starts the MCP server backing it only when
+          # --allowedTools names it here. Drop this line and the run stays green
+          # while the pull request stays silent.
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
