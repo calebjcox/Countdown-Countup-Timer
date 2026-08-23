@@ -1,6 +1,8 @@
 package com.calebjcox.countdownwidgets.ui
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -16,6 +18,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var store: TimerStore
     private lateinit var adapter: TimerListAdapter
+
+    private val tickHandler = Handler(Looper.getMainLooper())
+
+    // Timer values are text, not a Chronometer, so nothing repaints them on its own;
+    // this is what makes a foregrounded list keep counting.
+    private val tickRunnable = object : Runnable {
+        override fun run() {
+            adapter.tick()
+            tickHandler.postDelayed(this, 1_000)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,12 +70,18 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Timers change from the editor and from the widget configuration screen, and
-        // the values themselves go stale just by time passing, so the list is simply
-        // rebuilt whenever the screen comes forward.
+        // Timers change from the editor and from the widget configuration screen, so
+        // the list is rebuilt whenever the screen comes forward; tickRunnable then
+        // keeps its values current for as long as the screen stays forward.
         val timers = store.timers()
         adapter.submit(timers)
         binding.empty.visibility = if (timers.isEmpty()) View.VISIBLE else View.GONE
+        tickHandler.postDelayed(tickRunnable, 1_000)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        tickHandler.removeCallbacks(tickRunnable)
     }
 
     private fun showWidgetHelp() {

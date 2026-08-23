@@ -21,6 +21,13 @@ class TimerListAdapter(
         notifyDataSetChanged()
     }
 
+    // Rebinds every row without replacing the list, so a running clock keeps ticking
+    // in the UI even though the underlying timers haven't changed.
+    @SuppressLint("NotifyDataSetChanged")
+    fun tick() {
+        notifyDataSetChanged()
+    }
+
     override fun getItemCount(): Int = items.size
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
