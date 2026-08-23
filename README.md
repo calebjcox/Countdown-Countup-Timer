@@ -417,10 +417,9 @@ git tag v1.2.3 && git push origin v1.2.3
 
 The tag drives the version, so nothing in the source is bumped by hand: `v1.2.3`
 becomes `versionName` `1.2.3` and `versionCode` `10203`. Actions runs both test
-suites and lint, builds a signed **App Bundle**, and attaches `app-release.aab` to
-the GitHub Release. Upload that file in the Play Console. Pushing to Play from CI
-is a single extra step in [`release.yml`](.github/workflows/release.yml), sketched
-in a comment there for when it is wanted.
+suites and lint, builds a signed **App Bundle**, uploads it to Play, and attaches
+`app-release.aab` to the GitHub Release. Nothing is carried between the two by
+hand.
 
 Two things follow from Play App Signing, which this app uses. The key above is the
 *upload* key: Play verifies it, then re-signs with the app signing key it holds, so
@@ -428,10 +427,53 @@ the artifact built here is not the one that lands on phones and an APK built fro
 this repo can never be installed over a Play install. Sideloading therefore stays
 on the debug APK described above, which is a separate app anyway.
 
-Building a release locally works the same way and needs the same four variables
+Building a release locally works the same way and needs the same three variables
 exported. Without them any release task — `bundleRelease`, `assembleRelease`,
 `lintRelease` — fails immediately, on purpose: an unsigned build that looks
 successful is the one outcome worth ruling out. Debug builds need none of them.
+
+### Shipping to Play
+
+The upload is the release workflow's own work, done with a Play Console **service
+account** — a credential quite separate from the signing key above, and the only
+further secret involved:
+
+| Secret | Holds |
+| --- | --- |
+| `PLAY_SERVICE_ACCOUNT_JSON` | the service-account key file, verbatim |
+
+It is made in the Play Console under **Setup -> API access**: create a service
+account, download its JSON key from the Google Cloud page that opens, and grant it
+release permission on this app. Paste the whole file in. The workflow checks the
+secret parses and carries a `client_email` and a `private_key` before it tries to
+use it, because Google's own answer to a truncated paste is `Invalid JWT`, which
+names nothing.
+
+**Which track** is a repository variable rather than a commit, so widening the
+audience never touches the source:
+
+| Variable | Default | Decides |
+| --- | --- | --- |
+| `PLAY_TRACK` | `alpha` | the Play track the bundle lands on |
+| `PLAY_CHANGES_NOT_SENT_FOR_REVIEW` | unset | whether the upload stops short of review |
+
+`alpha` is the API's name for the built-in **closed testing** track, which is where
+releases go; a custom closed track goes by whatever name Play shows on its own page.
+Promoting to everyone is that one variable set to `production`, plus production
+release permission on the service account — the same tag push then ships there. A
+staged percentage rollout is a further change, in
+[`release.yml`](.github/workflows/release.yml): `status` becomes `inProgress` and
+gains a `userFraction`.
+
+The second variable is for an app Play has never published, where the API declines
+to send changes for review at all and the upload fails outright rather than falling
+back. Set it to `true` and the bundle arrives in the console for a human to submit;
+clear it once there is a published release.
+
+Play is uploaded to *before* the GitHub Release is created, which makes a release
+here the record that a version reached people. A bundle Play rejects — a
+`versionCode` it has already burned, a key whose permissions were revoked — leaves
+the tag with no release attached and the run red.
 
 ## Adding a widget
 

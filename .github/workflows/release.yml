@@ -82,25 +82,61 @@ jobs:
       - name: Build release bundle
         run: ./gradlew :app:bundleRelease
 
+      # Checked before the upload rather than left to Google's 400, because the two
+      # failures below arrive there as "invalid_grant" and "Invalid JWT", neither of
+      # which points at the secret that is actually wrong. stderr is dropped so a
+      # malformed value cannot spill a private key fragment into the log.
+      - name: Check Play credentials
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [[ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]]; then
+            echo "::error::PLAY_SERVICE_ACCOUNT_JSON is unset or empty. It holds a Play" \
+                 "Console service-account key, in full — see \"Releasing\" in the README."
+            exit 1
+          fi
+          if ! jq -e 'has("client_email") and has("private_key")' \
+               <<< "$PLAY_SERVICE_ACCOUNT_JSON" > /dev/null 2>&1; then
+            echo "::error::PLAY_SERVICE_ACCOUNT_JSON is not a service-account key: it is" \
+                 "either not JSON or has no client_email/private_key. Paste the whole" \
+                 ".json file Google Cloud downloads, not a fragment of it."
+            exit 1
+          fi
+
+      # Ahead of the GitHub Release on purpose. A release here is the record that a
+      # version reached people, so it is created only once Play has taken the bundle
+      # — a versionCode Play has already burned, or a key whose permissions were
+      # revoked, leaves the tag with no release attached and the run red, which is
+      # what actually happened.
+      #
+      # The track is a repository variable so that widening the audience is a
+      # settings change and not a commit: set PLAY_TRACK to "production" and the same
+      # tag push that ships to testers ships to everyone. "alpha" is the API's name
+      # for the built-in closed testing track; a custom closed track goes by the
+      # track name Play shows on its own page.
+      - name: Upload to Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.calebjcox.countdownwidgets
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          # Names the release in the Play Console after the tag rather than the
+          # versionCode, so 1.2.3 there matches v1.2.3 here.
+          releaseName: ${{ env.APP_VERSION_NAME }}
+          track: ${{ vars.PLAY_TRACK || 'alpha' }}
+          # The whole track at once. A staged percentage rollout would be "inProgress"
+          # with a userFraction, which only makes sense once the track is production.
+          status: completed
+          # Play refuses to send changes for review through the API while an app has
+          # never been published, and the upload fails outright rather than falling
+          # back. Setting the PLAY_CHANGES_NOT_SENT_FOR_REVIEW repository variable to
+          # "true" uploads the bundle and leaves it for a human to submit in the
+          # console; clear it once the app has a published release.
+          changesNotSentForReview: ${{ vars.PLAY_CHANGES_NOT_SENT_FOR_REVIEW == 'true' }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/bundle/release/app-release.aab
           generate_release_notes: true
           fail_on_unmatched_files: true
-
-      # Uploading to Play is still done by hand: download the .aab attached to the
-      # release above and drop it into the Play Console. When that moves into CI it
-      # is one step here, after the release is created:
-      #
-      #   - name: Upload to Play
-      #     uses: r0adkll/upload-google-play@v1
-      #     with:
-      #       serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-      #       packageName: com.calebjcox.countdownwidgets
-      #       releaseFiles: app/build/outputs/bundle/release/app-release.aab
-      #       track: internal
-      #
-      # PLAY_SERVICE_ACCOUNT_JSON is the only new secret it needs: a Play Console
-      # service-account key with the "Release apps to testing tracks" permission.
-      # Nothing above has to change — the bundle is already built and signed.
