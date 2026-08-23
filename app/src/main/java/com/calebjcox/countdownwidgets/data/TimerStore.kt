@@ -170,10 +170,30 @@ class TimerStore(context: Context) {
         commit(prefs.edit().putString(KEY_APP_THEME, theme.name))
     }
 
+    // ------------------------------------------------------------------ editor help
+
+    /**
+     * Whether the editor spells out what each setting does.
+     *
+     * Off unless the user asked for it. The hints explain settings that are visible in
+     * the preview a few lines below them, so they are read once and are clutter every
+     * time after — and the form is long enough that carrying six paragraphs of them costs
+     * a real amount of scrolling.
+     *
+     * Stored rather than held for the length of one screen, because a setting that resets
+     * itself is one the reader has to turn back on at every timer they open.
+     */
+    fun showHints(): Boolean = prefs.getBoolean(KEY_SHOW_HINTS, false)
+
+    fun setShowHints(show: Boolean) {
+        commit(prefs.edit().putBoolean(KEY_SHOW_HINTS, show))
+    }
+
     private companion object {
         const val PREFS_NAME = "timers"
         const val KEY_TIMERS = "timers"
         const val WIDGET_PREFIX = "widget."
         const val KEY_APP_THEME = "app_theme"
+        const val KEY_SHOW_HINTS = "show_hints"
     }
 }

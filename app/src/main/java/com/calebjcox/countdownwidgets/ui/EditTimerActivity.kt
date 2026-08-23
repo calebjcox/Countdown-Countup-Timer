@@ -46,6 +46,18 @@ class EditTimerActivity : AppCompatActivity() {
     private lateinit var store: TimerStore
     private lateinit var chips: Map<TimeField, Chip>
 
+    /**
+     * Every line of explanatory text on this screen, hidden together.
+     *
+     * Listed rather than found by walking the tree: a hint is an ordinary `TextView` in a
+     * form full of them, so anything that recognised them automatically would be
+     * recognising a style or a tag, and would take the preview's own small print with it.
+     * A hint added to the layout and not to this list is a hint that ignores the setting;
+     * `EditTimerHintsTest` counts them so that stays a compile-time-ish problem rather
+     * than one nobody sees.
+     */
+    private lateinit var hints: List<View>
+
     private var timerId: String? = null
     private var precision = Precision.DATE
     private var targetDate: LocalDate = LocalDate.now().plusDays(1)
@@ -63,6 +75,9 @@ class EditTimerActivity : AppCompatActivity() {
     private var nameVisibility = Timer.DEFAULT_NAME_VISIBILITY
     private var targetVisibility = Timer.DEFAULT_TARGET_VISIBILITY
     private var wrapValue = Timer.DEFAULT_WRAP_VALUE
+
+    /** Not a property of the timer, unlike everything above: it is how this screen reads. */
+    private var showHints = false
 
     /** Guards the chip and toggle listeners while [syncUi] writes their state. */
     private var syncing = false
@@ -97,6 +112,7 @@ class EditTimerActivity : AppCompatActivity() {
             else -> fields.addAll(TimerSpec.DEFAULT_DATE_FIELDS)
         }
 
+        setUpHints()
         setUpToolbar(isExisting = existing != null)
         setUpOpacitySlider()
         setUpListeners()
@@ -165,17 +181,65 @@ class EditTimerActivity : AppCompatActivity() {
             if (isExisting) R.string.edit_timer_title else R.string.new_timer_title,
         )
         binding.toolbar.setNavigationOnClickListener { finish() }
-        if (isExisting) {
-            binding.toolbar.inflateMenu(R.menu.menu_edit_timer)
-            binding.toolbar.setOnMenuItemClickListener { item ->
-                if (item.itemId == R.id.action_delete) {
+
+        // Inflated on a new timer too, which it did not used to be: Delete is the only
+        // item that needs a saved timer, and it is the one that hides rather than the
+        // menu that stays away.
+        binding.toolbar.inflateMenu(R.menu.menu_edit_timer)
+        binding.toolbar.menu.findItem(R.id.action_delete).isVisible = isExisting
+        binding.toolbar.menu.findItem(R.id.action_show_hints).isChecked = showHints
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_delete -> {
                     confirmDelete()
                     true
-                } else {
-                    false
                 }
+
+                R.id.action_show_hints -> {
+                    showHints = !showHints
+                    item.isChecked = showHints
+                    store.setShowHints(showHints)
+                    applyHints()
+                    true
+                }
+
+                else -> false
             }
         }
+    }
+
+    /**
+     * Collects the hints and puts them into whatever state they were last left in.
+     *
+     * Read from storage rather than restored with the rest of the screen: this is the
+     * reader's standing answer to "do I need these", not part of the timer being edited,
+     * so a rotation and the next timer opened both have to find it the same way.
+     */
+    private fun setUpHints() {
+        hints = listOf(
+            binding.unitsHint,
+            binding.rowsHint,
+            binding.wrapValueHint,
+            binding.backdropHint,
+            binding.scrimOpacityHint,
+            binding.textColorHint,
+        )
+        showHints = store.showHints()
+        applyHints()
+    }
+
+    /**
+     * Gone rather than invisible, so the form closes up around them — the whole point is
+     * the scrolling they cost.
+     *
+     * The opacity hint is inside the group `syncUi` shows and hides with the backdrop, and
+     * the two do not have to agree with each other: a child keeps its own visibility while
+     * its parent is gone, so whichever of the two says no wins and neither has to ask what
+     * the other decided.
+     */
+    private fun applyHints() {
+        val visibility = if (showHints) View.VISIBLE else View.GONE
+        hints.forEach { it.visibility = visibility }
     }
 
     private fun setUpListeners() {

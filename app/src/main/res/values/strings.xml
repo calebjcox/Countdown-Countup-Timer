@@ -67,6 +67,11 @@
     <string name="text_color_black">Black</string>
     <string name="text_color_hint">Light and Dark are tinted to match your wallpaper. White and Black are not, so they hold up on a wallpaper that defeats the others.</string>
     <string name="preview_section">Preview</string>
+    <!--
+      One switch for every hint on the screen: they are there to be read once and are
+      clutter afterwards, so nothing shows them until this is turned on.
+    -->
+    <string name="show_hints">Show help</string>
     <string name="save">Save</string>
     <string name="delete">Delete</string>
     <string name="delete_timer_title">Delete this timer?</string>

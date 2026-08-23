@@ -265,6 +265,7 @@
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <TextView
+                android:id="@+id/rows_hint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingBottom="8dp"
@@ -291,6 +292,7 @@
               hint is what stands in for that.
             -->
             <TextView
+                android:id="@+id/wrap_value_hint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingBottom="8dp"
@@ -338,6 +340,7 @@
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <TextView
+                android:id="@+id/backdrop_hint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingTop="8dp"
@@ -454,6 +457,7 @@
             </com.google.android.material.chip.ChipGroup>
 
             <TextView
+                android:id="@+id/text_color_hint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingTop="8dp"
