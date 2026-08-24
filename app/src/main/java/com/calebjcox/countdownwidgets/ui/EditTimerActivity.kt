@@ -4,6 +4,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.format.DateFormat
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
@@ -82,6 +84,22 @@ class EditTimerActivity : AppCompatActivity() {
     /** Guards the chip and toggle listeners while [syncUi] writes their state. */
     private var syncing = false
 
+    /** The spec [syncUi] last drew the preview from, so [tickRunnable] can redraw it. */
+    private lateinit var previewSpec: TimerSpec
+
+    private val tickHandler = Handler(Looper.getMainLooper())
+
+    // The preview is text, not a Chronometer, so nothing repaints it on its own. Only
+    // worth doing while a second is a visible unit of the display — a preview with no
+    // seconds row would not move even if this ran, and DurationMath doesn't change its
+    // answer between one whole minute and the next.
+    private val tickRunnable = object : Runnable {
+        override fun run() {
+            if (TimeField.SECOND in previewSpec.fields) renderPreviewValue()
+            tickHandler.postDelayed(this, 1_000)
+        }
+    }
+
     private val dateFormatter: DateTimeFormatter =
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     private val timeFormatter: DateTimeFormatter =
@@ -117,6 +135,16 @@ class EditTimerActivity : AppCompatActivity() {
         setUpOpacitySlider()
         setUpListeners()
         refresh()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        tickHandler.postDelayed(tickRunnable, 1_000)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        tickHandler.removeCallbacks(tickRunnable)
     }
 
     // ------------------------------------------------------------------ state
@@ -457,11 +485,7 @@ class EditTimerActivity : AppCompatActivity() {
         binding.date.text = targetDate.format(dateFormatter)
         binding.time.text = targetTime.format(timeFormatter)
 
-        val display = DurationMath.compute(
-            System.currentTimeMillis(),
-            ZoneId.systemDefault(),
-            spec,
-        )
+        previewSpec = spec
         // Switched off, or blank, leaves the row out rather than leaving a gap — both
         // of which are what the widget itself does with that row; see WidgetRenderer.
         //
@@ -477,11 +501,20 @@ class EditTimerActivity : AppCompatActivity() {
             } else {
                 View.GONE
             }
-        binding.previewValue.text = Rendering.formatDisplay(display, labelStyle)
         binding.previewFooter.text = TimerSummary.target(this, spec)
         binding.previewFooter.visibility =
             if (targetVisibility != RowVisibility.NEVER) View.VISIBLE else View.GONE
+        renderPreviewValue()
         syncPreviewColors()
+    }
+
+    private fun renderPreviewValue() {
+        val display = DurationMath.compute(
+            System.currentTimeMillis(),
+            ZoneId.systemDefault(),
+            previewSpec,
+        )
+        binding.previewValue.text = Rendering.formatDisplay(display, labelStyle)
     }
 
     /**
