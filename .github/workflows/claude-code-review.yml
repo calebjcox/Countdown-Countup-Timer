@@ -74,7 +74,24 @@ jobs:
           #
           # --comment is what puts the findings on the pull request. Without it the
           # review is written to this run's log and nobody sees it.
-          prompt: "/code-review:code-review --comment ${{ github.event.pull_request.number }}"
+          #
+          # The two sentences after the command countermand the skill's first step,
+          # which may stop on a pull request it judges automated or trivially
+          # correct. Everything here is both — written in a Claude Code session, and
+          # small — so that gate reads the work this workflow exists to check as the
+          # work least worth checking, and it decides inconsistently between runs.
+          #
+          # Its stop is indistinguishable from a clean review from outside: both exit
+          # 0. A run that gets past the gate always comments, even with nothing to
+          # report, so a silent pull request means the gate stopped it rather than
+          # that the diff was clean.
+          #
+          # They go on their own lines so that "--comment <number>" ends at the
+          # newline and the prose is not read as part of its value.
+          prompt: |-
+            /code-review:code-review --comment ${{ github.event.pull_request.number }}
+            Review this pull request even if it appears automated or trivially correct.
+            Only stop early if it is closed, a draft, or Claude has already commented.
 
           # Redundant-looking and not redundant: the skill's own frontmatter allows
           # this tool, but the action starts the MCP server backing it only when
